@@ -1,0 +1,31 @@
+{
+    "name": "cheevauva/container",
+    "type": "library",
+    "description": "Simple dependency injection container (Простое внедрение зависимостей)",
+    "keywords": ["dependency injection", "container"],
+    "homepage": "https://github.com/cheevauva/container",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Fedor Kazin",
+            "email": "cheevauva@yandex.ru"
+        }
+    ],
+    "require": {
+        "php": ">=5.3.0"
+    },
+    "require-dev": {
+        "php": ">=5.3.0",
+        "phpunit/phpunit": "4.8.*"
+    },
+    "autoload": {
+        "psr-0": {
+            "Cheevauva": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-0": {
+            "Cheevauva": "tests/"
+        }
+    }
+}
