@@ -32,7 +32,7 @@ class ContainerTest extends \PHPUnit_Framework_TestCase
                 'exampleB' => 'Cheevauva\Test\Container\ExampleB',
                 'exampleC' => 'Cheevauva\Test\Container\ExampleC',
             ),
-            'stdClass' => array(
+            'Cheevauva\Test\Container\ExampleD' => array(
                 'exampleA' => 'Cheevauva\Test\Container\ExampleA',
                 'exampleB' => 'Cheevauva\Test\Container\ExampleB',
             ),
@@ -54,17 +54,14 @@ class ContainerTest extends \PHPUnit_Framework_TestCase
         $this->assertInstanceOf('Cheevauva\Test\Container\ExampleA', $exampleA->exampleB->exampleA);
     }
 
-    public function testLogicComponent()
+    public function testMediatorComponent()
     {
-        $object = new \stdClass;
-
         $container = $this->getContainer();
-        $container->set('Cheevauva\Test\Container\ExampleD', $object);
+        $serviceLocator = $container->get('Cheevauva\Test\Container\ExampleD');
 
-        $this->assertInstanceOf('Cheevauva\Test\Container\ExampleA', $object->exampleA);
-        $this->assertInstanceOf('Cheevauva\Test\Container\ExampleB', $object->exampleB);
-        $this->assertInstanceOf('stdClass', $container->get('stdClass'));
-        $this->assertInstanceOf('stdClass', $container->get('Cheevauva\Test\Container\ExampleD'));
+        $this->assertInstanceOf('Cheevauva\Test\Container\ExampleA', $serviceLocator->get('exampleA'));
+        $this->assertInstanceOf('Cheevauva\Test\Container\ExampleB', $serviceLocator->get('exampleB'));
+        $this->assertInstanceOf('Cheevauva\Container\ServiceLocator', $serviceLocator);
     }
 
     public function testExtendsInjection()
@@ -72,13 +69,12 @@ class ContainerTest extends \PHPUnit_Framework_TestCase
         $object = new \stdClass;
 
         $container = $this->getContainer();
-        $container->set('Cheevauva\Test\Container\ExampleD', $object);
 
         $exampleE = $container->get('Cheevauva\Test\Container\ExampleE');
 
         $this->assertInstanceOf('Cheevauva\Test\Container\ExampleA', $exampleE->exampleA);
         $this->assertInstanceOf('Cheevauva\Test\Container\ExampleB', $exampleE->exampleB);
-        $this->assertInstanceOf('stdClass', $exampleE->exampleD);
+        $this->assertInstanceOf('Cheevauva\Container\ServiceLocator', $exampleE->exampleD);
     }
 
     public function testServiceLocator()

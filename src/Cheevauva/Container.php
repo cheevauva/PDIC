@@ -45,9 +45,14 @@ class Container
 
         $object = new $className;
 
-        $this->set($className, $object);
+        $this->objects[$className] = $object;
+        $this->handleObject($object);
+        
+        if ($object instanceof \Cheevauva\Contract\Container\Mediator) {
+            $this->objects[$className] = $object->get();
+        }
 
-        return $this->get($className);
+        return $this->objects[$className];
     }
 
     protected function getProperties($path)
@@ -101,16 +106,6 @@ class Container
             $message .= $e->getMessage();
 
             throw new Exception($message);
-        }
-    }
-
-    public function set($path, $object)
-    {
-        $this->objects[$path] = $object;
-        $this->handleObject($object);
-
-        if ($object instanceof \Cheevauva\Contract\Container\Mediator) {
-            $this->objects[$path] = $object->get();
         }
     }
 
