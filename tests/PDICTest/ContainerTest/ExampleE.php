@@ -1,6 +1,6 @@
 <?php
 
-namespace Cheevauva\Test\Container;
+namespace PDICTest\ContainerTest;
 
 class ExampleE extends ExampleA
 {

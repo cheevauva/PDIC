@@ -1,8 +1,8 @@
 <?php
 
-namespace Cheevauva\Contract\Container;
+namespace PDIC;
 
-interface Mediator
+interface InterfaceMediator
 {
 
     /**

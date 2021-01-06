@@ -1,31 +1,32 @@
 {
-    "name": "cheevauva/container",
+    "name": "cheevauva/pdic",
     "type": "library",
-    "description": "Simple dependency injection container (Простое внедрение зависимостей)",
-    "keywords": ["dependency injection", "container"],
-    "homepage": "https://github.com/cheevauva/container",
+    "description": "Property Dependency Injection Container",
+    "keywords": ["property dependency injection", "dependency injection", "container"],
+    "homepage": "https://github.com/cheevauva/pdic",
     "license": "MIT",
     "authors": [
         {
             "name": "Fedor Kazin",
-            "email": "cheevauva@yandex.ru"
+            "email": "japanxt@yandex.ru"
         }
     ],
     "require": {
-        "php": ">=5.3.0"
+        "php": ">=5.6",
+        "psr/container": "1.0.0"
     },
     "require-dev": {
-        "php": ">=5.3.0",
+        "php": ">=5.6",
         "phpunit/phpunit": "4.8.*"
     },
     "autoload": {
-        "psr-0": {
-            "Cheevauva": "src/"
+        "psr-4": {
+            "PDIC\\": "src/PDIC"
         }
     },
     "autoload-dev": {
         "psr-0": {
-            "Cheevauva": "tests/"
+            "PDICTest\\": "tests"
         }
     }
 }

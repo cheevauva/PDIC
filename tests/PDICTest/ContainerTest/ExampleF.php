@@ -1,8 +1,8 @@
 <?php
 
-namespace Cheevauva\Test\Container;
+namespace PDICTest\ContainerTest;
 
-class ExampleF extends ExampleA implements \Cheevauva\Contract\Container\Mediator
+class ExampleF extends ExampleA implements \PDIC\InterfaceMediator
 {
 
     public function get()
