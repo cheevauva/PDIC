@@ -2,6 +2,16 @@
 
 namespace PDICTest;
 
+use \PDICTest\ContainerTest\{
+    ExampleA,
+    ExampleB,
+    ExampleC,
+    ExampleD,
+    ExampleE,
+    ExampleF,
+    ExampleG
+};
+
 class ContainerTest extends \PHPUnit_Framework_TestCase
 {
 
@@ -11,33 +21,6 @@ class ContainerTest extends \PHPUnit_Framework_TestCase
     protected $container;
 
     /**
-     * @var array
-     */
-    protected $injectionsMap = [
-        'PDICTest\ContainerTest\ExampleA' => [
-            'exampleA' => 'PDICTest\ContainerTest\ExampleA',
-            'exampleB' => 'PDICTest\ContainerTest\ExampleB',
-        ],
-        'PDICTest\ContainerTest\ExampleB' => [
-            'exampleA' => 'PDICTest\ContainerTest\ExampleA',
-        ],
-        'PDICTest\ContainerTest\ExampleC' => [
-            'exampleA' => 'PDICTest\ContainerTest\ExampleA',
-            'exampleB' => 'PDICTest\ContainerTest\ExampleB',
-            'exampleC' => 'PDICTest\ContainerTest\ExampleC',
-        ],
-        'PDICTest\ContainerTest\ExampleD' => [
-            'exampleA' => 'PDICTest\ContainerTest\ExampleA',
-            'exampleB' => 'PDICTest\ContainerTest\ExampleB',
-        ],
-        'PDICTest\ContainerTest\ExampleE' => [
-            'exampleD' => 'PDICTest\ContainerTest\ExampleD',
-            'std' => 'stdClass',
-            'container' => 'PDIC\Container',
-        ],
-    ];
-
-    /**
      * @return \PDIC\Container
      */
     protected function getContainer()
@@ -45,30 +28,61 @@ class ContainerTest extends \PHPUnit_Framework_TestCase
         $objects = [
             'stdClass' => new \stdClass,
         ];
-        
-        $this->container = new \PDIC\Container($this->injectionsMap, $objects);
+
+        $this->container = new \PDIC\Container($this->getInjectionMap(), $objects);
 
         return $this->container;
+    }
+
+    protected function getInjectionMap()
+    {
+        return [
+            ExampleA::class => [
+                'exampleA' => ExampleA::class,
+                'exampleB' => ExampleB::class,
+            ],
+            ExampleB::class => [
+                'exampleA' => ExampleA::class,
+            ],
+            ExampleC::class => [
+                'a' => ExampleA::class,
+                'b' => ExampleB::class,
+                'c' => ExampleC::class,
+            ],
+            ExampleD::class => [
+                'exampleA' => ExampleA::class,
+                'exampleB' => ExampleB::class,
+            ],
+            ExampleE::class => [
+                'exampleD' => ExampleD::class,
+                'std' => 'stdClass',
+                'container' => 'PDIC\Container',
+            ],
+            ExampleG::class => [
+                'exampleA' => '*' . ExampleA::class,
+            ],
+        ];
     }
 
     public function testRelatedInjections()
     {
         $container = $this->getContainer();
 
-        /* @var $exampleA \PDICTest\ContainerTest\ExampleA */
-        $exampleA = $container->get('PDICTest\ContainerTest\ExampleA');
+        /* @var $exampleA ExampleA */
+        $exampleA = $container->get(ExampleA::class);
 
-        $this->assertInstanceOf('PDICTest\ContainerTest\ExampleA', $exampleA->exampleB->exampleA);
+        $this->assertInstanceOf(ExampleA::class, $exampleA->exampleB->exampleA);
     }
 
     public function testMediatorComponent()
     {
         $container = $this->getContainer();
-        /** @var ContainerTest\ExampleD $exampleD */
-        $exampleD = $container->get('PDICTest\ContainerTest\ExampleD');
 
-        $this->assertInstanceOf('PDICTest\ContainerTest\ExampleA', $exampleD->getExampleAFromServiceLocator());
-        $this->assertInstanceOf('PDICTest\ContainerTest\ExampleB', $exampleD->getExampleBFromServiceLocator());
+        /** @var ExampleD $exampleD */
+        $exampleD = $container->get(ExampleD::class);
+
+        $this->assertInstanceOf(ExampleA::class, $exampleD->getExampleAFromServiceLocator());
+        $this->assertInstanceOf(ExampleB::class, $exampleD->getExampleBFromServiceLocator());
         $this->assertInstanceOf('PDIC\ServiceLocator', $exampleD->getServiceLocator());
     }
 
@@ -76,11 +90,12 @@ class ContainerTest extends \PHPUnit_Framework_TestCase
     {
         $container = $this->getContainer();
 
-        $exampleE = $container->get('PDICTest\ContainerTest\ExampleE');
+        /** @var ExampleE $exampleE */
+        $exampleE = $container->get(ExampleE::class);
 
-        $this->assertInstanceOf('PDICTest\ContainerTest\ExampleA', $exampleE->exampleA);
-        $this->assertInstanceOf('PDICTest\ContainerTest\ExampleB', $exampleE->exampleB);
-        $this->assertInstanceOf('PDICTest\ContainerTest\ExampleD', $exampleE->exampleD);
+        $this->assertInstanceOf(ExampleA::class, $exampleE->exampleA);
+        $this->assertInstanceOf(ExampleB::class, $exampleE->exampleB);
+        $this->assertInstanceOf(ExampleD::class, $exampleE->exampleD);
     }
 
     public function testServiceLocator()
@@ -88,11 +103,11 @@ class ContainerTest extends \PHPUnit_Framework_TestCase
         $container = $this->getContainer();
 
         /* @var $exampleC \PDICTest\ContainerTest\ExampleC */
-        $exampleC = $container->get('PDICTest\ContainerTest\ExampleC');
+        $exampleC = $container->get(ExampleC::class);
 
-        $this->assertInstanceOf('PDICTest\ContainerTest\ExampleA', $exampleC->getContainer()->get('exampleA'));
-        $this->assertInstanceOf('PDICTest\ContainerTest\ExampleB', $exampleC->getContainer()->get('exampleB'));
-        $this->assertInstanceOf('PDICTest\ContainerTest\ExampleC', $exampleC->getContainer()->get('exampleC'));
+        $this->assertInstanceOf(ExampleA::class, $exampleC->getContainer()->get('a'));
+        $this->assertInstanceOf(ExampleB::class, $exampleC->getContainer()->get('b'));
+        $this->assertInstanceOf(ExampleC::class, $exampleC->getContainer()->get('c'));
     }
 
     public function testMediator()
@@ -100,12 +115,12 @@ class ContainerTest extends \PHPUnit_Framework_TestCase
         $container = $this->getContainer();
 
         /* @var $exampleF \SplObjectStorage */
-        $exampleF = $container->get('PDICTest\ContainerTest\ExampleF');
+        $exampleF = $container->get(ExampleF::class);
 
-        $this->assertInstanceOf('SplObjectStorage', $exampleF);
+        $this->assertInstanceOf(\SplObjectStorage::class, $exampleF);
 
-        $this->assertTrue($exampleF->contains($container->get('PDICTest\ContainerTest\ExampleA')));
-        $this->assertTrue($exampleF->contains($container->get('PDICTest\ContainerTest\ExampleB')));
+        $this->assertTrue($exampleF->contains($container->get(ExampleA::class)));
+        $this->assertTrue($exampleF->contains($container->get(ExampleB::class)));
     }
 
     public function testCreate()
@@ -113,11 +128,11 @@ class ContainerTest extends \PHPUnit_Framework_TestCase
         $container = $this->getContainer();
 
         /* @var $exampleA1 \PDICTest\ContainerTest\ExampleA */
-        $exampleA1 = $container->create('PDICTest\ContainerTest\ExampleA');
+        $exampleA1 = $container->create(ExampleA::class);
         $exampleA1->test = 1;
 
-        /* @var $exampleA1 \PDICTest\ContainerTest\ExampleA */
-        $exampleA2 = $container->create('PDICTest\ContainerTest\ExampleA');
+        /* @var $exampleA2 \PDICTest\ContainerTest\ExampleA */
+        $exampleA2 = $container->create(ExampleA::class);
         $exampleA2->test = 2;
 
         $this->assertNotEquals($exampleA1, $exampleA2);
@@ -128,24 +143,40 @@ class ContainerTest extends \PHPUnit_Framework_TestCase
         $container = $this->getContainer();
 
         /* @var $exampleA1 \PDICTest\ContainerTest\ExampleA */
-        $exampleA1 = $container->get('*PDICTest\ContainerTest\ExampleA');
+        $exampleA1 = $container->get('*' . ExampleA::class);
         $exampleA1->test = 1;
 
-        /* @var $exampleA1 \PDICTest\ContainerTest\ExampleA */
-        $exampleA2 = $container->get('*PDICTest\ContainerTest\ExampleA');
+        /* @var $exampleA2 \PDICTest\ContainerTest\ExampleA */
+        $exampleA2 = $container->get('*' . ExampleA::class);
         $exampleA2->test = 2;
 
         $this->assertNotEquals($exampleA1, $exampleA2);
     }
-    
+
     public function testPresetObjects()
     {
         $container = $this->getContainer();
 
-        /* @var $exampleE \PDICTest\ContainerTest\ExampleE */
-        $exampleE= $container->get('PDICTest\ContainerTest\ExampleE');
-        
-        $this->assertInstanceOf('stdClass', $exampleE->std);
+        /* @var $exampleE ExampleE */
+        $exampleE = $container->get(ExampleE::class);
+
+        $this->assertInstanceOf(\stdClass::class, $exampleE->std);
         $this->assertEquals($container, $exampleE->container);
     }
+
+    public function testCreateInContainer()
+    {
+        $container = $this->getContainer();
+
+        /* @var $exampleA \PDICTest\ContainerTest\ExampleA */
+        $exampleA = $container->get(ExampleA::class);
+        $exampleA->test = 1;
+
+        /* @var $exampleG \PDICTest\ContainerTest\ExampleG */
+        $exampleG = $container->get(ExampleG::class);
+        $exampleG->exampleA->test = 2;
+
+        $this->assertNotEquals($exampleA, $exampleG->exampleA);
+    }
+
 }
