@@ -8,7 +8,7 @@ namespace PDIC;
 
 use Psr\Container\ContainerInterface;
 
-class ServiceLocator
+class ServiceLocator implements ContainerInterface
 {
 
     /**
@@ -27,9 +27,18 @@ class ServiceLocator
         $this->container = $container;
     }
 
-    public function get($path)
+    public function get($id)
     {
-        return $this->container->get($this->properties[$path]);
+        if (empty($this->properties[$id])) {
+            throw new ExceptionNotFound(sprintf('dependency "%s" not found', $id));
+        }
+
+        return $this->container->get($this->properties[$id]);
+    }
+
+    public function has($id)
+    {
+        return isset($this->properties[$id]);
     }
 
 }

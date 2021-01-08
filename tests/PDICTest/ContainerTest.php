@@ -108,6 +108,9 @@ class ContainerTest extends \PHPUnit_Framework_TestCase
         $this->assertInstanceOf(ExampleA::class, $exampleC->getContainer()->get('a'));
         $this->assertInstanceOf(ExampleB::class, $exampleC->getContainer()->get('b'));
         $this->assertInstanceOf(ExampleC::class, $exampleC->getContainer()->get('c'));
+
+        $this->assertTrue($exampleC->getContainer()->has('a'));
+        $this->assertFalse($exampleC->getContainer()->has('d'));
     }
 
     public function testMediator()
@@ -177,6 +180,30 @@ class ContainerTest extends \PHPUnit_Framework_TestCase
         $exampleG->exampleA->test = 2;
 
         $this->assertNotEquals($exampleA, $exampleG->exampleA);
+    }
+
+    public function testNotFoundException()
+    {
+        $container = $this->getContainer();
+
+        $object = null;
+
+        try {
+            /* @var $exampleC \PDICTest\ContainerTest\ExampleC */
+            $exampleC = $container->get(ExampleC::class);
+
+            $object = $exampleC->getContainer()->get('d');
+        } catch (\Exception $ex) {
+            $this->assertInstanceOf(\Psr\Container\NotFoundExceptionInterface::class, $ex);
+        }
+
+        try {
+            $object = $container->get('main');
+        } catch (\Exception $ex) {
+            $this->assertInstanceOf(\Psr\Container\NotFoundExceptionInterface::class, $ex);
+        }
+        
+        $this->assertNull($object);
     }
 
 }

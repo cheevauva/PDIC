@@ -67,7 +67,7 @@ class Container implements InterfaceContainer
         }
 
         if (!class_exists($id, true)) {
-            throw new ExceptionNotFound($id);
+            throw new ExceptionNotFound(sprintf('class "%s" not found', $id));
         }
 
         $object = new $id;
