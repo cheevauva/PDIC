@@ -101,7 +101,7 @@ class Container implements InterfaceContainer
      */
     protected function getPropertiesByClass($class)
     {
-        $classes = $this->getTraits($class);
+        $classes = $this->getClasses($class);
         $classes += class_parents($class);
         $classes[] = $class;
 
@@ -143,7 +143,7 @@ class Container implements InterfaceContainer
      * @param string $class
      * @return array
      */
-    protected function getTraits($class)
+    protected function getClasses($class)
     {
         $traits = [];
 
@@ -152,7 +152,7 @@ class Container implements InterfaceContainer
         } while ($class = get_parent_class($class));
 
         foreach ($traits as $trait => $same) {
-            $traits += $this->getTraits($trait);
+            $traits += $this->getClasses($trait);
         }
 
         return array_unique($traits);
