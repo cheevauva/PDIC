@@ -6,8 +6,10 @@
 
 namespace PDIC;
 
-class Container implements InterfaceContainer
+class Container implements \Psr\Container\ContainerInterface
 {
+
+    const LOCAL_PREFIX = '*';
 
     /**
      * @var array
@@ -28,18 +30,6 @@ class Container implements InterfaceContainer
         $this->injections = $injections;
         $this->objects = $objects;
         $this->objects[get_class($this)] = $this;
-    }
-
-    /**
-     * @param string $className
-     * @return object
-     * @throws ExceptionNotFound
-     * @throws Exception
-     * @throws RuntimeException
-     */
-    public function create($className)
-    {
-        return $this->get(static::LOCAL_PREFIX . $className);
     }
 
     /**

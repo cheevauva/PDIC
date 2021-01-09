@@ -126,21 +126,6 @@ class ContainerTest extends \PHPUnit_Framework_TestCase
         $this->assertTrue($exampleF->contains($container->get(ExampleB::class)));
     }
 
-    public function testCreate()
-    {
-        $container = $this->getContainer();
-
-        /* @var $exampleA1 \PDICTest\ContainerTest\ExampleA */
-        $exampleA1 = $container->create(ExampleA::class);
-        $exampleA1->test = 1;
-
-        /* @var $exampleA2 \PDICTest\ContainerTest\ExampleA */
-        $exampleA2 = $container->create(ExampleA::class);
-        $exampleA2->test = 2;
-
-        $this->assertNotEquals($exampleA1, $exampleA2);
-    }
-
     public function testCreateAsGetWithLocalPrefix()
     {
         $container = $this->getContainer();
