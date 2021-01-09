@@ -47,12 +47,11 @@ class Container implements InterfaceContainer
      * @return object
      * @throws ExceptionNotFound
      * @throws Exception
-     * @throws RuntimeException
      */
     public function get($id)
     {
         if (empty($id)) {
-            throw new RuntimeException('id must be defined');
+            throw new Exception('id must be defined');
         }
 
         $isLocal = $id[0] === static::LOCAL_PREFIX;
