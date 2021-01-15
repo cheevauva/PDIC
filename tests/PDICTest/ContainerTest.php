@@ -9,7 +9,9 @@ use \PDICTest\ContainerTest\{
     ExampleD,
     ExampleE,
     ExampleF,
-    ExampleG
+    ExampleG,
+    ExampleH,
+    ExampleI
 };
 
 class ContainerTest extends \PHPUnit_Framework_TestCase
@@ -27,6 +29,7 @@ class ContainerTest extends \PHPUnit_Framework_TestCase
     {
         $objects = [
             'stdClass' => new \stdClass,
+            'string' => 'abc',
         ];
 
         $this->container = new \PDIC\Container($this->getInjectionMap(), $objects);
@@ -46,8 +49,10 @@ class ContainerTest extends \PHPUnit_Framework_TestCase
             ],
             ExampleC::class => [
                 'a' => ExampleA::class,
-                'b' => ExampleB::class,
-                'c' => ExampleC::class,
+            ],
+            ExampleF::class => [
+                'exampleA' => ExampleA::class,
+                'exampleB' => ExampleB::class,
             ],
             ExampleD::class => [
                 'exampleA' => ExampleA::class,
@@ -55,11 +60,17 @@ class ContainerTest extends \PHPUnit_Framework_TestCase
             ],
             ExampleE::class => [
                 'exampleD' => ExampleD::class,
-                'std' => 'stdClass',
-                'container' => 'PDIC\Container',
+                'std' => \stdClass::class,
+                'container' => \PDIC\Container::class,
             ],
             ExampleG::class => [
                 'exampleA' => '*' . ExampleA::class,
+            ],
+            ExampleH::class => [
+                '!a' => ExampleA::class,
+            ],
+            ExampleI::class => [
+                '!string' => '@string',
             ],
         ];
     }
@@ -74,18 +85,6 @@ class ContainerTest extends \PHPUnit_Framework_TestCase
         $this->assertInstanceOf(ExampleA::class, $exampleA->exampleB->exampleA);
     }
 
-    public function testMediatorComponent()
-    {
-        $container = $this->getContainer();
-
-        /** @var ExampleD $exampleD */
-        $exampleD = $container->get(ExampleD::class);
-
-        $this->assertInstanceOf(ExampleA::class, $exampleD->getExampleAFromServiceLocator());
-        $this->assertInstanceOf(ExampleB::class, $exampleD->getExampleBFromServiceLocator());
-        $this->assertInstanceOf('PDIC\ServiceLocator', $exampleD->getServiceLocator());
-    }
-
     public function testExtendsInjection()
     {
         $container = $this->getContainer();
@@ -98,47 +97,22 @@ class ContainerTest extends \PHPUnit_Framework_TestCase
         $this->assertInstanceOf(ExampleD::class, $exampleE->exampleD);
     }
 
-    public function testServiceLocator()
-    {
-        $container = $this->getContainer();
-
-        /* @var $exampleC \PDICTest\ContainerTest\ExampleC */
-        $exampleC = $container->get(ExampleC::class);
-
-        $this->assertInstanceOf(ExampleA::class, $exampleC->getContainer()->get('a'));
-        $this->assertInstanceOf(ExampleB::class, $exampleC->getContainer()->get('b'));
-        $this->assertInstanceOf(ExampleC::class, $exampleC->getContainer()->get('c'));
-
-        $this->assertTrue($exampleC->getContainer()->has('a'));
-        $this->assertFalse($exampleC->getContainer()->has('d'));
-    }
-
     public function testMediator()
     {
         $container = $this->getContainer();
 
-        /* @var $exampleF \SplObjectStorage */
-        $exampleF = $container->get(ExampleF::class);
+        /* @var $storage \SplObjectStorage */
+        $storage = $container->get(ExampleF::class);
 
-        $this->assertInstanceOf(\SplObjectStorage::class, $exampleF);
+        /* @var $exampleA ExampleA */
+        $exampleA = $container->get(ExampleA::class);
 
-        $this->assertTrue($exampleF->contains($container->get(ExampleA::class)));
-        $this->assertTrue($exampleF->contains($container->get(ExampleB::class)));
-    }
+        $this->assertInstanceOf(\SplObjectStorage::class, $storage);
+        $this->assertTrue($storage->contains($exampleA->exampleA));
+        $this->assertTrue($storage->contains($exampleA->exampleB));
 
-    public function testCreateAsGetWithLocalPrefix()
-    {
-        $container = $this->getContainer();
-
-        /* @var $exampleA1 \PDICTest\ContainerTest\ExampleA */
-        $exampleA1 = $container->get('*' . ExampleA::class);
-        $exampleA1->test = 1;
-
-        /* @var $exampleA2 \PDICTest\ContainerTest\ExampleA */
-        $exampleA2 = $container->get('*' . ExampleA::class);
-        $exampleA2->test = 2;
-
-        $this->assertNotEquals($exampleA1, $exampleA2);
+        $this->assertFalse($storage->contains($container->get(ExampleA::class)));
+        $this->assertFalse($storage->contains($container->get(ExampleB::class)));
     }
 
     public function testPresetObjects()
@@ -167,6 +141,56 @@ class ContainerTest extends \PHPUnit_Framework_TestCase
         $this->assertNotEquals($exampleA, $exampleG->exampleA);
     }
 
+    public function testForseInjection()
+    {
+        $container = $this->getContainer();
+
+        /* @var $exampleH ExampleH */
+        $exampleH = $container->get(ExampleH::class);
+
+        $this->assertInstanceOf(ExampleA::class, $exampleH->getA());
+    }
+
+    public function testVariableInjection()
+    {
+        $container = $this->getContainer();
+
+        /* @var $exampleI ExampleI */
+        $exampleI = $container->get(ExampleI::class);
+
+        $this->assertTrue($exampleI->getString() === "abc");
+    }
+    
+    public function testGetVariableFromContainerException()
+    {
+        $string = null;
+
+        try {
+            $string = $this->getContainer()->get('string');
+        } catch (\Exception $ex) {
+            $this->assertTrue($ex->getMessage() === 'class "string" not found');
+            $this->assertInstanceOf(\Psr\Container\NotFoundExceptionInterface::class, $ex);
+        }
+
+        $this->assertNull($string);
+    }
+    
+    public function testNotFoundPropertyException()
+    {
+        $container = $this->getContainer();
+
+        $object = null;
+
+        try {
+            $object = $container->get(ExampleC::class);
+        } catch (\Exception $ex) {
+            $this->assertTrue($ex->getMessage() === "PDICTest\ContainerTest\ExampleC: Property a not found");
+            $this->assertInstanceOf(\ReflectionException::class, $ex);
+        }
+
+        $this->assertNull($object);
+    }
+
     public function testNotFoundException()
     {
         $container = $this->getContainer();
@@ -174,20 +198,11 @@ class ContainerTest extends \PHPUnit_Framework_TestCase
         $object = null;
 
         try {
-            /* @var $exampleC \PDICTest\ContainerTest\ExampleC */
-            $exampleC = $container->get(ExampleC::class);
-
-            $object = $exampleC->getContainer()->get('d');
-        } catch (\Exception $ex) {
-            $this->assertInstanceOf(\Psr\Container\NotFoundExceptionInterface::class, $ex);
-        }
-
-        try {
             $object = $container->get('main');
         } catch (\Exception $ex) {
             $this->assertInstanceOf(\Psr\Container\NotFoundExceptionInterface::class, $ex);
         }
-        
+
         $this->assertNull($object);
     }
 

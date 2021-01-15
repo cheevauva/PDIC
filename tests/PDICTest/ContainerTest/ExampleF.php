@@ -2,14 +2,24 @@
 
 namespace PDICTest\ContainerTest;
 
-class ExampleF extends ExampleA implements \PDIC\InterfaceMediator
+class ExampleF implements \PDIC\InterfaceMediator
 {
+
+    /**
+     * @var ExampleA
+     */
+    public $exampleA;
+
+    /**
+     * @var ExampleB
+     */
+    public $exampleB;
 
     public function get()
     {
         $storage = new \SplObjectStorage;
-        $storage->attach($this->exampleA);
-        $storage->attach($this->exampleB);
+        $storage->offsetSet($this->exampleA, 'a');
+        $storage->offsetSet($this->exampleB, 'b');
 
         return $storage;
     }

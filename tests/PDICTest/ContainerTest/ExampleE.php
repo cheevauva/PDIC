@@ -6,8 +6,18 @@ class ExampleE extends ExampleA
 {
 
     /**
-     * @var stdClass
+     * @var ExampleD
      */
     public $exampleD;
+
+    /**
+     * @var \stdClass
+     */
+    public $std;
+
+    /**
+     * @var \Psr\Container\ContainerInterface
+     */
+    public $container;
 
 }

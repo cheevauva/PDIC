@@ -9,27 +9,29 @@ namespace PDIC;
 class Container implements \Psr\Container\ContainerInterface
 {
 
-    const LOCAL_PREFIX = '*';
+    const PREFIX_VARIABLE = '@';
+    const PREFIX_FORCE = '!';
+    const PREFIX_NOT_STORED = '*';
 
     /**
      * @var array
      */
-    protected $objects;
+    protected $entries = [];
 
     /**
      * @var array
      */
-    protected $injections = [];
+    protected $map = [];
 
     /**
-     * @param array $injections
-     * @param array $objects
+     * @param array $map
+     * @param array $entries
      */
-    public function __construct(array $injections, array $objects = [])
+    public function __construct(array $map, array $entries = [])
     {
-        $this->injections = $injections;
-        $this->objects = $objects;
-        $this->objects[get_class($this)] = $this;
+        $this->map = $map;
+        $this->entries = $entries;
+        $this->entries[get_class($this)] = $this;
     }
 
     /**
@@ -40,19 +42,35 @@ class Container implements \Psr\Container\ContainerInterface
      */
     public function get($id)
     {
+        return $this->fetch(static::PREFIX_NOT_STORED . $id);
+    }
+
+    /**
+     * @param string $id
+     * @return object
+     * @throws ExceptionNotFound
+     * @throws Exception
+     */
+    protected function fetch($id)
+    {
         if (empty($id)) {
             throw new Exception('id must be defined');
         }
 
-        $isLocal = $id[0] === static::LOCAL_PREFIX;
-        $isGlobal = !$isLocal;
+        $isLocal = $id[0] === static::PREFIX_NOT_STORED;
+        $isVariable = $id[0] === static::PREFIX_VARIABLE;
+        $isGlobal = !$isLocal && !$isVariable;
 
-        if ($isGlobal) {
-            if (isset($this->objects[$id])) {
-                return $this->objects[$id];
-            }
-        } else {
+        if ($isVariable || $isLocal) {
             $id = substr($id, 1);
+        }
+
+        if (($isGlobal || $isVariable) && isset($this->entries[$id])) {
+            return $this->entries[$id];
+        }
+
+        if ($isVariable) {
+            throw new ExceptionNotFound(sprintf('variable "%s" not found', $id));
         }
 
         if (!class_exists($id, true)) {
@@ -62,23 +80,19 @@ class Container implements \Psr\Container\ContainerInterface
         $object = new $id;
 
         if ($isGlobal) {
-            $this->objects[$id] = $object;
+            $this->entries[$id] = $object;
         }
 
         $properties = $this->getPropertiesByClass($id);
 
-        if ($object instanceof InterfaceUsePDICServiceLocator) {
-            $object->setPDICServiceLocatory(new ServiceLocator($properties, $this));
-        } else {
-            $this->setPropertiesToObject($object, $properties);
-        }
+        $this->setPropertiesToObject($object, $properties);
 
         if ($object instanceof InterfaceMediator) {
             $object = $object->get();
-        }
 
-        if ($isGlobal) {
-            $this->objects[$id] = $object;
+            if ($isGlobal) {
+                $this->entries[$id] = $object;
+            }
         }
 
         return $object;
@@ -97,11 +111,11 @@ class Container implements \Psr\Container\ContainerInterface
         $properties = [];
 
         foreach ($classes as $class) {
-            if (empty($this->injections[$class])) {
+            if (empty($this->map[$class])) {
                 continue;
             }
 
-            foreach ($this->injections[$class] as $key => $value) {
+            foreach ($this->map[$class] as $key => $value) {
                 $properties[$key] = $value;
             }
         }
@@ -118,7 +132,32 @@ class Container implements \Psr\Container\ContainerInterface
     {
         try {
             foreach ($properties as $property => $class) {
-                $object->{$property} = $this->get($class);
+                $isForce = $property[0] === static::PREFIX_FORCE;
+
+                if (!$isForce) {
+                    if (!property_exists($object, $property)) {
+                        throw new \ReflectionException(sprintf('%s: Property %s not found', get_class($object), $property));
+                    }
+
+                    $object->{$property} = $this->fetch($class);
+                    continue;
+                }
+
+                $property = substr($property, 1);
+
+                if (empty($reflecitonClass)) {
+                    $reflecitonClass = new \ReflectionClass($object);
+                }
+
+                $reflectionProperty = $reflecitonClass->getProperty($property);
+
+                if ($reflectionProperty->isPublic()) {
+                    $reflectionProperty->setValue($object, $this->fetch($class));
+                } else {
+                    $reflectionProperty->setAccessible(true);
+                    $reflectionProperty->setValue($object, $this->fetch($class));
+                    $reflectionProperty->setAccessible(false);
+                }
             }
         } catch (Exception $e) {
             $message = 'For class (' . get_class($object) . '), property (' . $property . '): ';
@@ -149,7 +188,7 @@ class Container implements \Psr\Container\ContainerInterface
 
     public function has($id)
     {
-        return isset($this->objects[$id]);
+        return isset($this->entries[$id]);
     }
 
 }
