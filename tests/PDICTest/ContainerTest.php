@@ -11,7 +11,8 @@ use \PDICTest\ContainerTest\{
     ExampleF,
     ExampleG,
     ExampleH,
-    ExampleI
+    ExampleI,
+    ExampleJ
 };
 
 class ContainerTest extends \PHPUnit_Framework_TestCase
@@ -72,9 +73,13 @@ class ContainerTest extends \PHPUnit_Framework_TestCase
             ExampleI::class => [
                 '!string' => '@string',
             ],
+            ExampleJ::class => [
+                '^2' => ExampleD::class,
+                '^1' => '@string',
+            ],
         ];
     }
-
+    
     public function testRelatedInjections()
     {
         $container = $this->getContainer();
@@ -151,6 +156,18 @@ class ContainerTest extends \PHPUnit_Framework_TestCase
         $this->assertInstanceOf(ExampleA::class, $exampleH->getA());
     }
 
+    public function testConstructorInjection()
+    {
+        $container = $this->getContainer();
+
+        /* @var $exampleJ ExampleJ */
+        $exampleJ = $container->get(ExampleJ::class);
+
+        $this->assertInstanceOf(ExampleA::class, $exampleJ->exampleA);
+        $this->assertInstanceOf(ExampleB::class, $exampleJ->exampleB);
+        $this->assertTrue((string) $exampleJ === 'abc' . ExampleD::class);
+    }
+
     public function testVariableInjection()
     {
         $container = $this->getContainer();
@@ -160,7 +177,7 @@ class ContainerTest extends \PHPUnit_Framework_TestCase
 
         $this->assertTrue($exampleI->getString() === "abc");
     }
-    
+
     public function testGetVariableFromContainerException()
     {
         $string = null;
@@ -174,7 +191,7 @@ class ContainerTest extends \PHPUnit_Framework_TestCase
 
         $this->assertNull($string);
     }
-    
+
     public function testNotFoundPropertyException()
     {
         $container = $this->getContainer();

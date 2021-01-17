@@ -12,6 +12,7 @@ class Container implements \Psr\Container\ContainerInterface
     const PREFIX_VARIABLE = '@';
     const PREFIX_FORCE = '!';
     const PREFIX_NOT_STORED = '*';
+    const PREFIX_CONSTRUCTOR_INJECT = '^';
 
     /**
      * @var array
@@ -77,13 +78,28 @@ class Container implements \Psr\Container\ContainerInterface
             throw new ExceptionNotFound(sprintf('class "%s" not found', $id));
         }
 
-        $object = new $id;
+        $properties = $this->getPropertiesByClass($id);
+        $constructorProperties = [];
+
+        foreach ($properties as $property => $class) {
+            if ($property[0] !== static::PREFIX_CONSTRUCTOR_INJECT) {
+                continue;
+            }
+
+            $constructorProperties[substr($property, 1)] = $this->fetch($class);
+
+            unset($properties[$property]);
+        }
+
+        if (!empty($constructorProperties)) {
+            ksort($constructorProperties, SORT_NUMERIC);
+        }
+
+        $object = new $id(...$constructorProperties);
 
         if ($isGlobal) {
             $this->entries[$id] = $object;
         }
-
-        $properties = $this->getPropertiesByClass($id);
 
         $this->setPropertiesToObject($object, $properties);
 
