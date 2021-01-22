@@ -92,7 +92,7 @@ class Container implements \Psr\Container\ContainerInterface
         }
 
         if (!empty($constructorProperties)) {
-            ksort($constructorProperties, SORT_NUMERIC);
+            ksort($constructorProperties, SORT_NATURAL);
         }
 
         $object = new $id(...$constructorProperties);
