@@ -13,6 +13,7 @@ class Container implements \Psr\Container\ContainerInterface
     const PREFIX_FORCE = '!';
     const PREFIX_NOT_STORED = '*';
     const PREFIX_CONSTRUCTOR_INJECT = '^';
+    const PREFIX_SETTER_INJECT = '>';
 
     /**
      * @var array
@@ -25,14 +26,20 @@ class Container implements \Psr\Container\ContainerInterface
     protected $map = [];
 
     /**
+     * @var Configuration 
+     */
+    protected $configuration;
+
+    /**
      * @param array $map
      * @param array $entries
      */
-    public function __construct(array $map, array $entries = [])
+    public function __construct(array $map, array $entries = [], Configuration $configuration = null)
     {
         $this->map = $map;
         $this->entries = $entries;
         $this->entries[get_class($this)] = $this;
+        $this->configuration = is_null($configuration) ? new Configuration : $configuration;
     }
 
     /**
@@ -78,21 +85,28 @@ class Container implements \Psr\Container\ContainerInterface
             throw new ExceptionNotFound(sprintf('class "%s" not found', $id));
         }
 
-        $properties = $this->getPropertiesByClass($id);
-        $constructorProperties = [];
-
-        foreach ($properties as $property => $class) {
-            if ($property[0] !== static::PREFIX_CONSTRUCTOR_INJECT) {
-                continue;
-            }
-
-            $constructorProperties[substr($property, 1)] = $this->fetch($class);
-
-            unset($properties[$property]);
+        if (!$this->configuration->isSupportInherit) {
+            $properties = isset($this->map[$id]) ? $this->map[$id] : [];
+        } else {
+            $properties = $this->getPropertiesByClass($id);
         }
 
-        if (!empty($constructorProperties)) {
-            ksort($constructorProperties, SORT_NATURAL);
+        $constructorProperties = [];
+
+        if ($this->configuration->isSupportInjectionToConstructor) {
+            foreach ($properties as $property => $class) {
+                if ($property[0] !== static::PREFIX_CONSTRUCTOR_INJECT) {
+                    continue;
+                }
+
+                $constructorProperties[substr($property, 1)] = $this->fetch($class);
+
+                unset($properties[$property]);
+            }
+
+            if (!empty($constructorProperties)) {
+                ksort($constructorProperties, SORT_NUMERIC);
+            }
         }
 
         $object = new $id(...$constructorProperties);
@@ -101,9 +115,15 @@ class Container implements \Psr\Container\ContainerInterface
             $this->entries[$id] = $object;
         }
 
-        $this->setPropertiesToObject($object, $properties);
+        if ($this->configuration->isSupportInjectionToProperty) {
+            $this->setPropertiesToObject($object, $properties);
+        }
 
-        if ($object instanceof InterfaceMediator) {
+        if ($this->configuration->isSupportInjectionToSetter) {
+            throw new Exception('not implemented');
+        }
+
+        if ($this->configuration->isSupportMediator && $object instanceof InterfaceMediator) {
             $object = $object->get();
 
             if ($isGlobal) {
@@ -120,8 +140,20 @@ class Container implements \Psr\Container\ContainerInterface
      */
     protected function getPropertiesByClass($class)
     {
-        $classes = $this->getClasses($class);
-        $classes += class_parents($class);
+        $classes = [];
+
+        if ($this->configuration->isSupportInheritTraits) {
+            $classes += $this->getTraits($class);
+        }
+
+        if ($this->configuration->isSupportInheritInterfaces) {
+            $classes += class_implements($class);
+        }
+
+        if ($this->configuration->isSupportInheritParents) {
+            $classes += class_parents($class);
+        }
+
         $classes[] = $class;
 
         $properties = [];
@@ -151,28 +183,31 @@ class Container implements \Psr\Container\ContainerInterface
                 $isForce = $property[0] === static::PREFIX_FORCE;
 
                 if (!$isForce) {
-                    if (!property_exists($object, $property)) {
+                    if ($this->configuration->isCheckPropertyExists && !property_exists($object, $property)) {
                         throw new \ReflectionException(sprintf('%s: Property %s not found', get_class($object), $property));
                     }
 
                     $object->{$property} = $this->fetch($class);
-                    continue;
-                }
-
-                $property = substr($property, 1);
-
-                if (empty($reflecitonClass)) {
-                    $reflecitonClass = new \ReflectionClass($object);
-                }
-
-                $reflectionProperty = $reflecitonClass->getProperty($property);
-
-                if ($reflectionProperty->isPublic()) {
-                    $reflectionProperty->setValue($object, $this->fetch($class));
                 } else {
-                    $reflectionProperty->setAccessible(true);
-                    $reflectionProperty->setValue($object, $this->fetch($class));
-                    $reflectionProperty->setAccessible(false);
+                    if (!$this->configuration->isSupportForcedInjactionToProperty) {
+                        throw new Exception('I am not allowed to do this, because isSupportForcedInjactionToProperty defined as false');
+                    }
+
+                    $property = substr($property, 1);
+
+                    if (empty($reflecitonClass)) {
+                        $reflecitonClass = new \ReflectionClass($object);
+                    }
+
+                    $reflectionProperty = $reflecitonClass->getProperty($property);
+
+                    if ($reflectionProperty->isPublic()) {
+                        $reflectionProperty->setValue($object, $this->fetch($class));
+                    } else {
+                        $reflectionProperty->setAccessible(true);
+                        $reflectionProperty->setValue($object, $this->fetch($class));
+                        $reflectionProperty->setAccessible(false);
+                    }
                 }
             }
         } catch (Exception $e) {
@@ -187,7 +222,7 @@ class Container implements \Psr\Container\ContainerInterface
      * @param string $class
      * @return array
      */
-    protected function getClasses($class)
+    protected function getTraits($class)
     {
         $traits = [];
 
@@ -196,7 +231,7 @@ class Container implements \Psr\Container\ContainerInterface
         } while ($class = get_parent_class($class));
 
         foreach ($traits as $trait => $same) {
-            $traits += $this->getClasses($trait);
+            $traits += $this->getTraits($trait);
         }
 
         return array_unique($traits);
