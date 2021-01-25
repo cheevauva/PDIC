@@ -11,9 +11,11 @@ class Container implements \Psr\Container\ContainerInterface
 
     const PREFIX_VARIABLE = '@';
     const PREFIX_FORCE = '!';
-    const PREFIX_NOT_STORED = '*';
+    const PREFIX_FACTORY = '*';
+    const PREFIX_SERVICE = '=';
     const PREFIX_CONSTRUCTOR_INJECT = '^';
     const PREFIX_SETTER_INJECT = '>';
+    const PREFIX_ALIAS = '?';
 
     /**
      * @var array
@@ -26,6 +28,13 @@ class Container implements \Psr\Container\ContainerInterface
     protected $map = [];
 
     /**
+     * Aliases only for get method, in the container aliases not be uses
+     * 
+     * @var array
+     */
+    protected $aliases = [];
+
+    /**
      * @var Configuration 
      */
     protected $configuration;
@@ -36,10 +45,17 @@ class Container implements \Psr\Container\ContainerInterface
      */
     public function __construct(array $map, array $entries = [], Configuration $configuration = null)
     {
-        $this->map = $map;
         $this->entries = $entries;
         $this->entries[get_class($this)] = $this;
         $this->configuration = is_null($configuration) ? new Configuration : $configuration;
+
+        foreach ($map as $id => $def) {
+            if ($this->configuration->isSupportAliases && $id[0] === static::PREFIX_ALIAS) {
+                $this->aliases[substr($id, 1)] = $def;
+            } else {
+                $this->map[$id] = $def;
+            }
+        }
     }
 
     /**
@@ -50,7 +66,13 @@ class Container implements \Psr\Container\ContainerInterface
      */
     public function get($id)
     {
-        return $this->fetch(static::PREFIX_NOT_STORED . $id);
+        if ($this->configuration->isSupportAliases && isset($this->aliases[$id])) {
+            $id = $this->aliases[$id];
+        } else {
+            $id = static::PREFIX_FACTORY . $id;
+        }
+
+        return $this->fetch($id);
     }
 
     /**
@@ -65,15 +87,15 @@ class Container implements \Psr\Container\ContainerInterface
             throw new Exception('id must be defined');
         }
 
-        $isLocal = $id[0] === static::PREFIX_NOT_STORED;
+        $isFactory = $id[0] === static::PREFIX_FACTORY;
         $isVariable = $id[0] === static::PREFIX_VARIABLE;
-        $isGlobal = !$isLocal && !$isVariable;
+        $isService = !$isFactory && !$isVariable;
 
-        if ($isVariable || $isLocal) {
+        if ($isVariable || $isFactory) {
             $id = substr($id, 1);
         }
 
-        if (($isGlobal || $isVariable) && isset($this->entries[$id])) {
+        if (($isService || $isVariable) && isset($this->entries[$id])) {
             return $this->entries[$id];
         }
 
@@ -109,29 +131,29 @@ class Container implements \Psr\Container\ContainerInterface
             }
         }
 
-        $object = new $id(...$constructorProperties);
+        $entry = new $id(...$constructorProperties);
 
-        if ($isGlobal) {
-            $this->entries[$id] = $object;
+        if ($isService) {
+            $this->entries[$id] = $entry;
         }
 
         if ($this->configuration->isSupportInjectionToProperty) {
-            $this->setPropertiesToObject($object, $properties);
+            $this->setPropertiesToObject($entry, $properties);
         }
 
         if ($this->configuration->isSupportInjectionToSetter) {
             throw new Exception('not implemented');
         }
 
-        if ($this->configuration->isSupportMediator && $object instanceof InterfaceMediator) {
-            $object = $object->get();
+        if ($this->configuration->isSupportMediator && $entry instanceof InterfaceMediator) {
+            $entry = $entry->get();
 
-            if ($isGlobal) {
-                $this->entries[$id] = $object;
+            if ($isService) {
+                $this->entries[$id] = $entry;
             }
         }
 
-        return $object;
+        return $entry;
     }
 
     /**

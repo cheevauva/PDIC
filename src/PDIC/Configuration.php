@@ -55,4 +55,9 @@ class Configuration
      */
     public $isCheckPropertyExists = true;
 
+    /**
+     * @var bool
+     */
+    public $isSupportAliases = true;
+
 }

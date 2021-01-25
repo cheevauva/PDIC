@@ -41,6 +41,8 @@ class ContainerTest extends \PHPUnit_Framework_TestCase
     protected function getInjectionMap()
     {
         return [
+            '?factoryA' => '*' . ExampleA::class,
+            '?serviceA' => ExampleA::class,
             ExampleA::class => [
                 'exampleA' => ExampleA::class,
                 'exampleB' => ExampleB::class,
@@ -79,7 +81,7 @@ class ContainerTest extends \PHPUnit_Framework_TestCase
             ],
         ];
     }
-    
+
     public function testRelatedInjections()
     {
         $container = $this->getContainer();
@@ -135,11 +137,11 @@ class ContainerTest extends \PHPUnit_Framework_TestCase
     {
         $container = $this->getContainer();
 
-        /* @var $exampleA \PDICTest\ContainerTest\ExampleA */
+        /* @var $exampleA ExampleA */
         $exampleA = $container->get(ExampleA::class);
         $exampleA->test = 1;
 
-        /* @var $exampleG \PDICTest\ContainerTest\ExampleG */
+        /* @var $exampleG ExampleG */
         $exampleG = $container->get(ExampleG::class);
         $exampleG->exampleA->test = 2;
 
@@ -221,6 +223,30 @@ class ContainerTest extends \PHPUnit_Framework_TestCase
         }
 
         $this->assertNull($object);
+    }
+
+    public function testAliases()
+    {
+        $container = $this->getContainer();
+        /* @var $exampleA2 ExampleA */
+        $exampleA2 = $container->get('serviceA');
+        $exampleA2->mustBeNotEmpty = true;
+
+        /* @var $exampleA3 ExampleA */
+        $exampleA3 = $container->get('serviceA');
+
+        $this->assertNotEquals(ExampleA::class, $exampleA2);
+        $this->assertTrue(!empty($exampleA3->mustBeNotEmpty));
+        
+        /* @var $exampleA ExampleA */
+        $exampleA = $container->get('factoryA');
+        $exampleA->mustBeEmpty = 1;
+
+        /* @var $exampleA1 ExampleA */
+        $exampleA1 = $container->get('factoryA');
+
+        $this->assertNotEquals(ExampleA::class, $exampleA);
+        $this->assertTrue(empty($exampleA1->mustBeEmpty));
     }
 
 }
