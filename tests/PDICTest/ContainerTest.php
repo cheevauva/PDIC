@@ -13,7 +13,8 @@ use \PDICTest\ContainerTest\{
     ExampleH,
     ExampleI,
     ExampleJ,
-    ExampleK
+    ExampleK,
+    ExampleL
 };
 
 class ContainerTest extends \PHPUnit_Framework_TestCase
@@ -84,6 +85,10 @@ class ContainerTest extends \PHPUnit_Framework_TestCase
             ExampleK::class => [
                 'a' => '?factoryA',
             ],
+            ExampleL::class => [
+                '>setA' => ExampleA::class,
+                '^1' => '@string',
+            ]
         ];
     }
 
@@ -256,6 +261,14 @@ class ContainerTest extends \PHPUnit_Framework_TestCase
         /* @var $exampleK ExampleK */
         $container->get('k')->a->mustBeEmpty = 1;
         $this->assertTrue(empty($container->get('k')->a->mustBeEmpty));
+    }
+
+    public function testSetter()
+    {
+        /* @var $exampleL ExampleL */
+        $exampleL = $this->getContainer()->get(ExampleL::class);
+
+        $this->assertInstanceOf(ExampleA::class, $exampleL->getA());
     }
 
 }

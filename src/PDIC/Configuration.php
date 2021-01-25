@@ -18,7 +18,7 @@ class Configuration
     /**
      * @var bool
      */
-    public $isSupportInjectionToSetter = false;
+    public $isSupportInjectionToSetter = true;
 
     /**
      * @var bool

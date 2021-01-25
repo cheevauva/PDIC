@@ -84,7 +84,7 @@ class Container implements \Psr\Container\ContainerInterface
         if (empty($id)) {
             throw new Exception('id must be defined');
         }
-        
+
         if ($this->configuration->isSupportAliases && $id[0] === static::PREFIX_ALIAS) {
             return $this->get(substr($id, 1));
         }
@@ -118,14 +118,11 @@ class Container implements \Psr\Container\ContainerInterface
         $constructorProperties = [];
 
         if ($this->configuration->isSupportInjectionToConstructor) {
-            foreach ($properties as $property => $class) {
-                if ($property[0] !== static::PREFIX_CONSTRUCTOR_INJECT) {
-                    continue;
+            foreach ($properties as $property => $entryId) {
+                if ($property[0] == static::PREFIX_CONSTRUCTOR_INJECT) {
+                    $constructorProperties[substr($property, 1)] = $this->fetch($entryId);
+                    unset($properties[$property]);
                 }
-
-                $constructorProperties[substr($property, 1)] = $this->fetch($class);
-
-                unset($properties[$property]);
             }
 
             if (!empty($constructorProperties)) {
@@ -139,12 +136,17 @@ class Container implements \Psr\Container\ContainerInterface
             $this->entries[$id] = $entry;
         }
 
-        if ($this->configuration->isSupportInjectionToProperty) {
-            $this->setPropertiesToObject($entry, $properties);
+        if ($this->configuration->isSupportInjectionToSetter) {
+            foreach ($properties as $property => $entryId) {
+                if ($property[0] === static::PREFIX_SETTER_INJECT) {
+                    $entry->{substr($property, 1)}($this->fetch($entryId));
+                    unset($properties[$property]);
+                }
+            }
         }
 
-        if ($this->configuration->isSupportInjectionToSetter) {
-            throw new Exception('not implemented');
+        if ($this->configuration->isSupportInjectionToProperty) {
+            $this->setPropertiesToObject($entry, $properties);
         }
 
         if ($this->configuration->isSupportMediator && $entry instanceof InterfaceMediator) {
@@ -203,7 +205,7 @@ class Container implements \Psr\Container\ContainerInterface
     protected function setPropertiesToObject($object, array $properties)
     {
         try {
-            foreach ($properties as $property => $class) {
+            foreach ($properties as $property => $entryId) {
                 $isForce = $property[0] === static::PREFIX_FORCE;
 
                 if (!$isForce) {
@@ -211,7 +213,7 @@ class Container implements \Psr\Container\ContainerInterface
                         throw new \ReflectionException(sprintf('%s: Property %s not found', get_class($object), $property));
                     }
 
-                    $object->{$property} = $this->fetch($class);
+                    $object->{$property} = $this->fetch($entryId);
                 } else {
                     if (!$this->configuration->isSupportForcedInjactionToProperty) {
                         throw new Exception('I am not allowed to do this, because isSupportForcedInjactionToProperty defined as false');
@@ -226,10 +228,10 @@ class Container implements \Psr\Container\ContainerInterface
                     $reflectionProperty = $reflecitonClass->getProperty($property);
 
                     if ($reflectionProperty->isPublic()) {
-                        $reflectionProperty->setValue($object, $this->fetch($class));
+                        $reflectionProperty->setValue($object, $this->fetch($entryId));
                     } else {
                         $reflectionProperty->setAccessible(true);
-                        $reflectionProperty->setValue($object, $this->fetch($class));
+                        $reflectionProperty->setValue($object, $this->fetch($entryId));
                         $reflectionProperty->setAccessible(false);
                     }
                 }
