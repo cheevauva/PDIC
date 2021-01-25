@@ -12,7 +12,8 @@ use \PDICTest\ContainerTest\{
     ExampleG,
     ExampleH,
     ExampleI,
-    ExampleJ
+    ExampleJ,
+    ExampleK
 };
 
 class ContainerTest extends \PHPUnit_Framework_TestCase
@@ -43,6 +44,7 @@ class ContainerTest extends \PHPUnit_Framework_TestCase
         return [
             '?factoryA' => '*' . ExampleA::class,
             '?serviceA' => ExampleA::class,
+            '?k' => '*' . ExampleK::class,
             ExampleA::class => [
                 'exampleA' => ExampleA::class,
                 'exampleB' => ExampleB::class,
@@ -78,6 +80,9 @@ class ContainerTest extends \PHPUnit_Framework_TestCase
             ExampleJ::class => [
                 '^2' => ExampleD::class,
                 '^1' => '@string',
+            ],
+            ExampleK::class => [
+                'a' => '?factoryA',
             ],
         ];
     }
@@ -237,7 +242,7 @@ class ContainerTest extends \PHPUnit_Framework_TestCase
 
         $this->assertNotEquals(ExampleA::class, $exampleA2);
         $this->assertTrue(!empty($exampleA3->mustBeNotEmpty));
-        
+
         /* @var $exampleA ExampleA */
         $exampleA = $container->get('factoryA');
         $exampleA->mustBeEmpty = 1;
@@ -247,6 +252,10 @@ class ContainerTest extends \PHPUnit_Framework_TestCase
 
         $this->assertNotEquals(ExampleA::class, $exampleA);
         $this->assertTrue(empty($exampleA1->mustBeEmpty));
+
+        /* @var $exampleK ExampleK */
+        $container->get('k')->a->mustBeEmpty = 1;
+        $this->assertTrue(empty($container->get('k')->a->mustBeEmpty));
     }
 
 }

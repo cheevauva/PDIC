@@ -28,8 +28,6 @@ class Container implements \Psr\Container\ContainerInterface
     protected $map = [];
 
     /**
-     * Aliases only for get method, in the container aliases not be uses
-     * 
      * @var array
      */
     protected $aliases = [];
@@ -85,6 +83,10 @@ class Container implements \Psr\Container\ContainerInterface
     {
         if (empty($id)) {
             throw new Exception('id must be defined');
+        }
+        
+        if ($this->configuration->isSupportAliases && $id[0] === static::PREFIX_ALIAS) {
+            return $this->get(substr($id, 1));
         }
 
         $isFactory = $id[0] === static::PREFIX_FACTORY;
