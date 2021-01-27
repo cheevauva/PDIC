@@ -292,9 +292,28 @@ class ContainerTest extends \PHPUnit_Framework_TestCase
     {
         /** @var Example $example */
         $example = $this->getContainer()->get('example');
-        
+
         $this->assertInstanceOf(ExampleL::class, $example->l);
         $this->assertInstanceOf(ExampleA::class, $example->l->getA());
+    }
+
+    public function testObjectInvariance()
+    {
+        $container = new \PDIC\Container([
+            '?' . ExampleA::class => ExampleA::class,
+            '?' . ExampleB::class => ExampleA::class,
+        ]);
+
+        $before = $container->get(ExampleA::class);
+        $after = $container->get(ExampleB::class);
+
+        $this->assertEquals($before, $after);
+
+        $before->exampleA = false;
+
+        $after = $container->get(ExampleB::class);
+
+        $this->assertEquals($before, $after);
     }
 
 }
