@@ -3,6 +3,7 @@
 namespace PDICTest;
 
 use \PDICTest\ContainerTest\{
+    Example,
     ExampleA,
     ExampleB,
     ExampleC,
@@ -30,8 +31,11 @@ class ContainerTest extends \PHPUnit_Framework_TestCase
      */
     protected function getContainer()
     {
+        $stdClass = new \stdClass;
+        $stdClass->isPreseted = true;
+
         $objects = [
-            'stdClass' => new \stdClass,
+            'stdClass' => $stdClass,
             'string' => 'abc',
         ];
 
@@ -43,9 +47,24 @@ class ContainerTest extends \PHPUnit_Framework_TestCase
     protected function getInjectionMap()
     {
         return [
+            '?aliasForString' => '@string',
+            '?' . ExampleM::class => ExampleM::class,
+            '?' . ExampleM1::class => ExampleM::class,
             '?factoryA' => '*' . ExampleA::class,
             '?serviceA' => ExampleA::class,
             '?k' => '*' . ExampleK::class,
+            '?example' => Example::class,
+            Example::class => [
+                'a' => ExampleA::class,
+                'b' => ExampleB::class,
+                'e' => ExampleE::class,
+                'f' => ExampleF::class,
+                'g' => ExampleG::class,
+                'h' => ExampleH::class,
+                'i' => ExampleI::class,
+                'j' => ExampleJ::class,
+                'l' => ExampleL::class,
+            ],
             ExampleA::class => [
                 'exampleA' => ExampleA::class,
                 'exampleB' => ExampleB::class,
@@ -92,41 +111,38 @@ class ContainerTest extends \PHPUnit_Framework_TestCase
         ];
     }
 
-    public function testRelatedInjections()
+    public function testDeepInjections()
     {
-        $container = $this->getContainer();
+        /* @var $example Example */
+        $example = $this->getContainer()->get('example');
 
-        /* @var $exampleA ExampleA */
-        $exampleA = $container->get(ExampleA::class);
-
-        $this->assertInstanceOf(ExampleA::class, $exampleA->exampleB->exampleA);
+        $this->assertInstanceOf(ExampleA::class, $example->a->exampleB->exampleA);
+        $this->assertEquals($example->a, $example->a->exampleB->exampleA);
     }
 
     public function testExtendsInjection()
     {
-        $container = $this->getContainer();
+        /** @var Example $example */
+        $example = $this->getContainer()->get('example');
 
-        /** @var ExampleE $exampleE */
-        $exampleE = $container->get(ExampleE::class);
-
-        $this->assertInstanceOf(ExampleA::class, $exampleE->exampleA);
-        $this->assertInstanceOf(ExampleB::class, $exampleE->exampleB);
-        $this->assertInstanceOf(ExampleD::class, $exampleE->exampleD);
+        $this->assertInstanceOf(ExampleA::class, $example->e->exampleA);
+        $this->assertInstanceOf(ExampleB::class, $example->e->exampleB);
+        $this->assertInstanceOf(ExampleD::class, $example->e->exampleD);
     }
 
     public function testMediator()
     {
         $container = $this->getContainer();
 
-        /* @var $storage \SplObjectStorage */
-        $storage = $container->get(ExampleF::class);
+        /** @var Example $example */
+        $example = $container->get('example');
 
-        /* @var $exampleA ExampleA */
-        $exampleA = $container->get(ExampleA::class);
+        /* @var $storage \SplObjectStorage */
+        $storage = $example->f;
 
         $this->assertInstanceOf(\SplObjectStorage::class, $storage);
-        $this->assertTrue($storage->contains($exampleA->exampleA));
-        $this->assertTrue($storage->contains($exampleA->exampleB));
+        $this->assertTrue($storage->contains($example->a));
+        $this->assertTrue($storage->contains($example->b));
 
         $this->assertFalse($storage->contains($container->get(ExampleA::class)));
         $this->assertFalse($storage->contains($container->get(ExampleB::class)));
@@ -136,23 +152,23 @@ class ContainerTest extends \PHPUnit_Framework_TestCase
     {
         $container = $this->getContainer();
 
-        /* @var $exampleE ExampleE */
-        $exampleE = $container->get(ExampleE::class);
+        /** @var Example $example */
+        $example = $container->get('example');
 
-        $this->assertInstanceOf(\stdClass::class, $exampleE->std);
-        $this->assertEquals($container, $exampleE->container);
+        $this->assertTrue($example->e->std->isPreseted);
+        $this->assertEquals($container, $example->e->container);
+        $this->assertTrue(empty($container->get(\stdClass::class)->isPreseted));
     }
 
     public function testCreateInContainer()
     {
-        $container = $this->getContainer();
+        /** @var Example $example */
+        $example = $this->getContainer()->get('example');
 
-        /* @var $exampleA ExampleA */
-        $exampleA = $container->get(ExampleA::class);
+        $exampleA = $example->a;
         $exampleA->test = 1;
 
-        /* @var $exampleG ExampleG */
-        $exampleG = $container->get(ExampleG::class);
+        $exampleG = $example->g;
         $exampleG->exampleA->test = 2;
 
         $this->assertNotEquals($exampleA, $exampleG->exampleA);
@@ -160,34 +176,33 @@ class ContainerTest extends \PHPUnit_Framework_TestCase
 
     public function testForseInjection()
     {
-        $container = $this->getContainer();
+        /** @var Example $example */
+        $example = $this->getContainer()->get('example');
 
-        /* @var $exampleH ExampleH */
-        $exampleH = $container->get(ExampleH::class);
-
-        $this->assertInstanceOf(ExampleA::class, $exampleH->getA());
+        $this->assertInstanceOf(ExampleA::class, $example->h->getA());
     }
 
     public function testConstructorInjection()
     {
-        $container = $this->getContainer();
+        /** @var Example $example */
+        $example = $this->getContainer()->get('example');
 
-        /* @var $exampleJ ExampleJ */
-        $exampleJ = $container->get(ExampleJ::class);
-
-        $this->assertInstanceOf(ExampleA::class, $exampleJ->exampleA);
-        $this->assertInstanceOf(ExampleB::class, $exampleJ->exampleB);
-        $this->assertTrue((string) $exampleJ === 'abc' . ExampleD::class);
+        $this->assertInstanceOf(ExampleA::class, $example->j->exampleA);
+        $this->assertInstanceOf(ExampleB::class, $example->j->exampleB);
+        $this->assertTrue((string) $example->j === 'abc' . ExampleD::class);
     }
 
     public function testVariableInjection()
     {
-        $container = $this->getContainer();
+        /** @var Example $example */
+        $example = $this->getContainer()->get('example');
 
-        /* @var $exampleI ExampleI */
-        $exampleI = $container->get(ExampleI::class);
+        $this->assertTrue($example->i->getString() === "abc");
+    }
 
-        $this->assertTrue($exampleI->getString() === "abc");
+    public function testGetVariableFromContainer()
+    {
+        $this->assertEquals($this->getContainer()->get('aliasForString'), 'abc');
     }
 
     public function testGetVariableFromContainerException()
@@ -238,37 +253,48 @@ class ContainerTest extends \PHPUnit_Framework_TestCase
     public function testAliases()
     {
         $container = $this->getContainer();
-        /* @var $exampleA2 ExampleA */
-        $exampleA2 = $container->get('serviceA');
-        $exampleA2->mustBeNotEmpty = true;
 
-        /* @var $exampleA3 ExampleA */
-        $exampleA3 = $container->get('serviceA');
+        /* @var $a2 ExampleA */
+        $a2 = $container->get('serviceA');
+        $a2->mustBeNotEmpty = true;
 
-        $this->assertNotEquals(ExampleA::class, $exampleA2);
-        $this->assertTrue(!empty($exampleA3->mustBeNotEmpty));
+        /* @var $a3 ExampleA */
+        $a3 = $container->get('serviceA');
 
-        /* @var $exampleA ExampleA */
-        $exampleA = $container->get('factoryA');
-        $exampleA->mustBeEmpty = 1;
+        $this->assertEquals($a2, $a3);
+        $this->assertTrue(!empty($a3->mustBeNotEmpty));
 
-        /* @var $exampleA1 ExampleA */
-        $exampleA1 = $container->get('factoryA');
+        /* @var $a ExampleA */
+        $a = $container->get('factoryA');
+        $a->mustBeEmpty = 1;
 
-        $this->assertNotEquals(ExampleA::class, $exampleA);
-        $this->assertTrue(empty($exampleA1->mustBeEmpty));
+        $this->assertNotEquals($a2, $a);
+        $this->assertNotEquals($a3, $a);
 
-        /* @var $exampleK ExampleK */
-        $container->get('k')->a->mustBeEmpty = 1;
-        $this->assertTrue(empty($container->get('k')->a->mustBeEmpty));
+        /* @var $a1 ExampleA */
+        $a1 = $container->get('factoryA');
+
+        $this->assertNotEquals($a1, $a);
+        $this->assertTrue(empty($a1->mustBeEmpty));
+
+        /* @var $k ExampleK */
+        $k = $container->get('k');
+        $k->a->mustBeEmpty = 1;
+
+        /* @var $k1 ExampleK */
+        $k1 = $container->get('k');
+
+        $this->assertNotEquals($k->a, $k1->a);
+        $this->assertTrue(empty($k1->a->mustBeEmpty));
     }
 
     public function testSetter()
     {
-        /* @var $exampleL ExampleL */
-        $exampleL = $this->getContainer()->get(ExampleL::class);
-
-        $this->assertInstanceOf(ExampleA::class, $exampleL->getA());
+        /** @var Example $example */
+        $example = $this->getContainer()->get('example');
+        
+        $this->assertInstanceOf(ExampleL::class, $example->l);
+        $this->assertInstanceOf(ExampleA::class, $example->l->getA());
     }
 
 }
