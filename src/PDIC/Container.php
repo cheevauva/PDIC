@@ -16,6 +16,7 @@ class Container implements \Psr\Container\ContainerInterface
     const PREFIX_CONSTRUCTOR_INJECT = '^';
     const PREFIX_SETTER_INJECT = '>';
     const PREFIX_ALIAS = '?';
+    const PREFIX_MEDIATOR = '~';
 
     /**
      * @var array
@@ -89,6 +90,16 @@ class Container implements \Psr\Container\ContainerInterface
             return $this->get(substr($id, 1));
         }
 
+        $isMediator = $id[0] === static::PREFIX_MEDIATOR;
+
+        if ($isMediator) {
+            if (!$this->configuration->isSupportMediator) {
+                throw new Exception('I am not allowed to do this, because isSupportMediator defined as false');
+            }
+
+            $id = substr($id, 1);
+        }
+
         $isFactory = $id[0] === static::PREFIX_FACTORY;
         $isVariable = $id[0] === static::PREFIX_VARIABLE;
         $isService = !$isFactory && !$isVariable;
@@ -149,8 +160,8 @@ class Container implements \Psr\Container\ContainerInterface
             $this->setPropertiesToObject($entry, $properties);
         }
 
-        if ($this->configuration->isSupportMediator && $entry instanceof InterfaceMediator) {
-            $entry = $entry->get();
+        if ($isMediator) {
+            $entry = $entry();
 
             if ($isService) {
                 $this->entries[$id] = $entry;

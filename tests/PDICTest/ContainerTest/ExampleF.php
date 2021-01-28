@@ -2,7 +2,7 @@
 
 namespace PDICTest\ContainerTest;
 
-class ExampleF implements \PDIC\InterfaceMediator
+class ExampleF
 {
 
     /**
@@ -15,7 +15,7 @@ class ExampleF implements \PDIC\InterfaceMediator
      */
     public $exampleB;
 
-    public function get()
+    public function __invoke()
     {
         $storage = new \SplObjectStorage;
         $storage->offsetSet($this->exampleA, 'a');

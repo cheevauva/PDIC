@@ -58,7 +58,7 @@ class ContainerTest extends \PHPUnit_Framework_TestCase
                 'a' => ExampleA::class,
                 'b' => ExampleB::class,
                 'e' => ExampleE::class,
-                'f' => ExampleF::class,
+                'f' => '~' . ExampleF::class,
                 'g' => ExampleG::class,
                 'h' => ExampleH::class,
                 'i' => ExampleI::class,
