@@ -9,10 +9,9 @@ namespace PDIC;
 class Container implements \Psr\Container\ContainerInterface
 {
 
-    const PREFIX_VARIABLE = '@';
-    const PREFIX_FORCE = '!';
+    const PREFIX_PARAMETER = '@';
     const PREFIX_FACTORY = '*';
-    const PREFIX_SERVICE = '=';
+    const PREFIX_PROPERTY_INJECT_FORCE = '!';
     const PREFIX_CONSTRUCTOR_INJECT = '^';
     const PREFIX_SETTER_INJECT = '>';
     const PREFIX_ALIAS = '?';
@@ -101,7 +100,7 @@ class Container implements \Psr\Container\ContainerInterface
         }
 
         $isFactory = $id[0] === static::PREFIX_FACTORY;
-        $isVariable = $id[0] === static::PREFIX_VARIABLE;
+        $isVariable = $id[0] === static::PREFIX_PARAMETER;
         $isService = !$isFactory && !$isVariable;
 
         if ($isVariable || $isFactory) {
@@ -217,7 +216,7 @@ class Container implements \Psr\Container\ContainerInterface
     {
         try {
             foreach ($properties as $property => $entryId) {
-                $isForce = $property[0] === static::PREFIX_FORCE;
+                $isForce = $property[0] === static::PREFIX_PROPERTY_INJECT_FORCE;
 
                 if (!$isForce) {
                     if ($this->configuration->isCheckPropertyExists && !property_exists($object, $property)) {
