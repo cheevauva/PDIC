@@ -22,6 +22,11 @@ class Example
     public $f;
 
     /**
+     * @var \SplObjectStorage
+     */
+    public $f1;
+
+    /**
      * @var ExampleG 
      */
     public $g;

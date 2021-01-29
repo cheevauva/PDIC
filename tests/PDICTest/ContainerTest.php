@@ -48,17 +48,17 @@ class ContainerTest extends \PHPUnit_Framework_TestCase
     {
         return [
             '?aliasForString' => '@string',
-            '?' . ExampleM::class => ExampleM::class,
-            '?' . ExampleM1::class => ExampleM::class,
             '?factoryA' => '*' . ExampleA::class,
             '?serviceA' => ExampleA::class,
             '?k' => '*' . ExampleK::class,
             '?example' => Example::class,
+            '?f' => '~' . ExampleF::class,
             Example::class => [
                 'a' => ExampleA::class,
                 'b' => ExampleB::class,
                 'e' => ExampleE::class,
-                'f' => '~' . ExampleF::class,
+                'f' => '?f',
+                'f1' => '~*' . ExampleF::class,
                 'g' => ExampleG::class,
                 'h' => ExampleH::class,
                 'i' => ExampleI::class,
@@ -139,6 +139,8 @@ class ContainerTest extends \PHPUnit_Framework_TestCase
 
         /* @var $storage \SplObjectStorage */
         $storage = $example->f;
+
+        $this->assertNotEquals($example->f->test, $example->f1->test);
 
         $this->assertInstanceOf(\SplObjectStorage::class, $storage);
         $this->assertTrue($storage->contains($example->a));

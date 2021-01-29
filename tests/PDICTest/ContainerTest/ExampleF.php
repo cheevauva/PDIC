@@ -18,6 +18,7 @@ class ExampleF
     public function __invoke()
     {
         $storage = new \SplObjectStorage;
+        $storage->test = microtime(true);
         $storage->offsetSet($this->exampleA, 'a');
         $storage->offsetSet($this->exampleB, 'b');
 
