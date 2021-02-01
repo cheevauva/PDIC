@@ -124,23 +124,36 @@ class Container implements \Psr\Container\ContainerInterface
             $map = $this->getPropertiesByClass($id);
         }
 
+        $constructorArguments = [];
+        $setters = [];
+        $properties = [];
+
+        foreach ($map as $target => $entryId) {
+            switch ($target[0]) {
+                case static::PREFIX_CONSTRUCTOR_INJECT:
+                    $constructorArguments[substr($target, 1)] = $entryId;
+                    break;
+                case static::PREFIX_SETTER_INJECT:
+                    $setters[substr($target, 1)] = $entryId;
+                    break;
+                default:
+                    $properties[$target] = $entryId;
+            }
+        }
+
+        if (!empty($constructorArguments)) {
+            ksort($constructorArguments, SORT_NUMERIC);
+        }
+
         try {
-            $constructorArguments = [];
+            $injection = 'constructor argument';
 
-            if ($this->configuration->isSupportInjectionToConstructor) {
-                $typeInjection = 'constructor argument';
-
-                foreach ($map as $target => $entryId) {
-                    if ($target[0] == static::PREFIX_CONSTRUCTOR_INJECT) {
-                        $preparedTarget = substr($target, 1);
-                        $constructorArguments[$preparedTarget] = $this->fetch($entryId);
-                        unset($map[$target]);
-                    }
+            foreach ($constructorArguments as $target => $entryId) {
+                if (!$this->configuration->isSupportInjectionToConstructor && !empty($constructorArguments)) {
+                    throw new Exception('I am not allowed to do this, because isSupportInjectionToConstructor defined as false');
                 }
 
-                if (!empty($constructorArguments)) {
-                    ksort($constructorArguments, SORT_NUMERIC);
-                }
+                $constructorArguments[$target] = $this->fetch($entryId);
             }
 
             $entry = new $id(...$constructorArguments);
@@ -149,40 +162,37 @@ class Container implements \Psr\Container\ContainerInterface
                 $this->entries[$id] = $entry;
             }
 
-            if ($this->configuration->isSupportInjectionToSetter) {
-                $typeInjection = 'setter';
+            $injection = 'setter';
 
-                foreach ($map as $target => $entryId) {
-                    if ($target[0] !== static::PREFIX_SETTER_INJECT) {
-                        continue;
-                    }
-                    unset($map[$target]);
-                    $preparedTarget = substr($target, 1);
-
-                    if ($this->configuration->isCheckSetterExists && !method_exists($entry, $preparedTarget)) {
-                        throw new Exception(sprintf('setter "%s" not found', $preparedTarget));
-                    }
-
-                    $entry->{$preparedTarget}($this->fetch($entryId));
+            foreach ($setters as $target => $entryId) {
+                if (!$this->configuration->isSupportInjectionToSetter) {
+                    throw new Exception('I am not allowed to do this, because isSupportInjectionToSetter defined as false');
                 }
+
+                if ($this->configuration->isCheckSetterExists && !method_exists($entry, $target)) {
+                    throw new Exception(sprintf('setter "%s" not found', $target));
+                }
+
+                $entry->{$target}($this->fetch($entryId));
             }
 
-            if ($this->configuration->isSupportInjectionToProperty) {
-                $typeInjection = 'property';
+            $injection = 'property';
 
-                foreach ($map as $target => $entryId) {
-                    $preparedTarget = $target;
 
-                    if ($this->configuration->isCheckPropertyExists && !property_exists($entry, $target)) {
-                        throw new Exception(sprintf('property "%s" not found', $target));
-                    }
-
-                    $entry->{$target} = $this->fetch($entryId);
+            foreach ($properties as $target => $entryId) {
+                if (!$this->configuration->isSupportInjectionToProperty) {
+                    throw new Exception('I am not allowed to do this, because isSupportInjectionToProperty defined as false');
                 }
+
+                if ($this->configuration->isCheckPropertyExists && !property_exists($entry, $target)) {
+                    throw new Exception(sprintf('property "%s" not found', $target));
+                }
+
+                $entry->{$target} = $this->fetch($entryId);
             }
         } catch (Exception $e) {
             $class = (empty($entry) ? $id : get_class($entry));
-            $message = sprintf('For class (%s), %s (%s): ', $class, $typeInjection, $preparedTarget);
+            $message = sprintf('For class (%s), %s (%s): ', $class, $injection, $target);
             $message .= $e->getMessage();
 
             throw new Exception($message);
