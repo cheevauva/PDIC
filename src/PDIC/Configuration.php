@@ -23,11 +23,6 @@ class Configuration
     /**
      * @var bool
      */
-    public $isSupportForcedInjactionToProperty = true;
-
-    /**
-     * @var bool
-     */
     public $isSupportInheritTraits = true;
 
     /**
@@ -54,6 +49,11 @@ class Configuration
      * @var bool
      */
     public $isCheckPropertyExists = true;
+
+    /**
+     * @var bool
+     */
+    public $isCheckSetterExists = true;
 
     /**
      * @var bool

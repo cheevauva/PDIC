@@ -11,7 +11,6 @@ class Container implements \Psr\Container\ContainerInterface
 
     const PREFIX_PARAMETER = '@';
     const PREFIX_FACTORY = '*';
-    const PREFIX_PROPERTY_INJECT_FORCE = '!';
     const PREFIX_CONSTRUCTOR_INJECT = '^';
     const PREFIX_SETTER_INJECT = '>';
     const PREFIX_ALIAS = '?';
@@ -120,43 +119,73 @@ class Container implements \Psr\Container\ContainerInterface
         }
 
         if (!$this->configuration->isSupportInherit) {
-            $properties = isset($this->map[$id]) ? $this->map[$id] : [];
+            $map = isset($this->map[$id]) ? $this->map[$id] : [];
         } else {
-            $properties = $this->getPropertiesByClass($id);
+            $map = $this->getPropertiesByClass($id);
         }
 
-        $constructorProperties = [];
+        try {
+            $constructorArguments = [];
 
-        if ($this->configuration->isSupportInjectionToConstructor) {
-            foreach ($properties as $property => $entryId) {
-                if ($property[0] == static::PREFIX_CONSTRUCTOR_INJECT) {
-                    $constructorProperties[substr($property, 1)] = $this->fetch($entryId);
-                    unset($properties[$property]);
+            if ($this->configuration->isSupportInjectionToConstructor) {
+                $typeInjection = 'constructor argument';
+
+                foreach ($map as $target => $entryId) {
+                    if ($target[0] == static::PREFIX_CONSTRUCTOR_INJECT) {
+                        $preparedTarget = substr($target, 1);
+                        $constructorArguments[$preparedTarget] = $this->fetch($entryId);
+                        unset($map[$target]);
+                    }
+                }
+
+                if (!empty($constructorArguments)) {
+                    ksort($constructorArguments, SORT_NUMERIC);
                 }
             }
 
-            if (!empty($constructorProperties)) {
-                ksort($constructorProperties, SORT_NUMERIC);
+            $entry = new $id(...$constructorArguments);
+
+            if ($isService) {
+                $this->entries[$id] = $entry;
             }
-        }
 
-        $entry = new $id(...$constructorProperties);
+            if ($this->configuration->isSupportInjectionToSetter) {
+                $typeInjection = 'setter';
 
-        if ($isService) {
-            $this->entries[$id] = $entry;
-        }
+                foreach ($map as $target => $entryId) {
+                    if ($target[0] !== static::PREFIX_SETTER_INJECT) {
+                        continue;
+                    }
+                    unset($map[$target]);
+                    $preparedTarget = substr($target, 1);
 
-        if ($this->configuration->isSupportInjectionToSetter) {
-            foreach ($properties as $property => $entryId) {
-                if ($property[0] === static::PREFIX_SETTER_INJECT) {
-                    $entry->{substr($property, 1)}($this->fetch($entryId));
-                    unset($properties[$property]);
+                    if ($this->configuration->isCheckSetterExists && !method_exists($entry, $preparedTarget)) {
+                        throw new Exception(sprintf('setter "%s" not found', $preparedTarget));
+                    }
+
+                    $entry->{$preparedTarget}($this->fetch($entryId));
                 }
             }
-        }
 
-        if ($this->configuration->isSupportInjectionToProperty) {
-            $this->setPropertiesToObject($entry, $properties);
+            if ($this->configuration->isSupportInjectionToProperty) {
+                $typeInjection = 'property';
+
+                foreach ($map as $target => $entryId) {
+                    $preparedTarget = $target;
+
+                    if ($this->configuration->isCheckPropertyExists && !property_exists($entry, $target)) {
+                        throw new Exception(sprintf('property "%s" not found', $target));
+                    }
+
+                    $entry->{$target} = $this->fetch($entryId);
+                }
+            }
+        } catch (Exception $e) {
+            $class = (empty($entry) ? $id : get_class($entry));
+            $message = sprintf('For class (%s), %s (%s): ', $class, $typeInjection, $preparedTarget);
+            $message .= $e->getMessage();
+
+            throw new Exception($message);
         }
 
         if ($isMediator) {
@@ -205,53 +234,6 @@ class Container implements \Psr\Container\ContainerInterface
         }
 
         return $properties;
-    }
-
-    /**
-     * @param object $object
-     * @param array $properties
-     * @throws Exception
-     */
-    protected function setPropertiesToObject($object, array $properties)
-    {
-        try {
-            foreach ($properties as $property => $entryId) {
-                $isForce = $property[0] === static::PREFIX_PROPERTY_INJECT_FORCE;
-
-                if (!$isForce) {
-                    if ($this->configuration->isCheckPropertyExists && !property_exists($object, $property)) {
-                        throw new \ReflectionException(sprintf('%s: Property %s not found', get_class($object), $property));
-                    }
-
-                    $object->{$property} = $this->fetch($entryId);
-                } else {
-                    if (!$this->configuration->isSupportForcedInjactionToProperty) {
-                        throw new Exception('I am not allowed to do this, because isSupportForcedInjactionToProperty defined as false');
-                    }
-
-                    $property = substr($property, 1);
-
-                    if (empty($reflecitonClass)) {
-                        $reflecitonClass = new \ReflectionClass($object);
-                    }
-
-                    $reflectionProperty = $reflecitonClass->getProperty($property);
-
-                    if ($reflectionProperty->isPublic()) {
-                        $reflectionProperty->setValue($object, $this->fetch($entryId));
-                    } else {
-                        $reflectionProperty->setAccessible(true);
-                        $reflectionProperty->setValue($object, $this->fetch($entryId));
-                        $reflectionProperty->setAccessible(false);
-                    }
-                }
-            }
-        } catch (Exception $e) {
-            $message = 'For class (' . get_class($object) . '), property (' . $property . '): ';
-            $message .= $e->getMessage();
-
-            throw new Exception($message);
-        }
     }
 
     /**

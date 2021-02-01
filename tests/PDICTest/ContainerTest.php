@@ -2,21 +2,22 @@
 
 namespace PDICTest;
 
-use \PDICTest\ContainerTest\{
-    Example,
-    ExampleA,
-    ExampleB,
-    ExampleC,
-    ExampleD,
-    ExampleE,
-    ExampleF,
-    ExampleG,
-    ExampleH,
-    ExampleI,
-    ExampleJ,
-    ExampleK,
-    ExampleL
-};
+use PDICTest\ContainerTest\Example;
+use PDICTest\ContainerTest\ExampleA;
+use PDICTest\ContainerTest\ExampleB;
+use PDICTest\ContainerTest\ExampleC;
+use PDICTest\ContainerTest\ExampleC1;
+use PDICTest\ContainerTest\ExampleC2;
+use PDICTest\ContainerTest\ExampleC3;
+use PDICTest\ContainerTest\ExampleD;
+use PDICTest\ContainerTest\ExampleE;
+use PDICTest\ContainerTest\ExampleF;
+use PDICTest\ContainerTest\ExampleG;
+use PDICTest\ContainerTest\ExampleH;
+use PDICTest\ContainerTest\ExampleI;
+use PDICTest\ContainerTest\ExampleJ;
+use PDICTest\ContainerTest\ExampleK;
+use PDICTest\ContainerTest\ExampleL;
 
 class ContainerTest extends \PHPUnit_Framework_TestCase
 {
@@ -75,6 +76,15 @@ class ContainerTest extends \PHPUnit_Framework_TestCase
             ExampleC::class => [
                 'a' => ExampleA::class,
             ],
+            ExampleC1::class => [
+                'c' => ExampleC::class,
+            ],
+            ExampleC2::class => [
+                '^1' => 'main',
+            ],
+            ExampleC3::class => [
+                '>setMain' => 'main',
+            ],
             ExampleF::class => [
                 'exampleA' => ExampleA::class,
                 'exampleB' => ExampleB::class,
@@ -91,11 +101,8 @@ class ContainerTest extends \PHPUnit_Framework_TestCase
             ExampleG::class => [
                 'exampleA' => '*' . ExampleA::class,
             ],
-            ExampleH::class => [
-                '!a' => ExampleA::class,
-            ],
             ExampleI::class => [
-                '!string' => '@string',
+                '^1' => '@string',
             ],
             ExampleJ::class => [
                 '^2' => ExampleD::class,
@@ -176,14 +183,6 @@ class ContainerTest extends \PHPUnit_Framework_TestCase
         $this->assertNotEquals($exampleA, $exampleG->exampleA);
     }
 
-    public function testForseInjection()
-    {
-        /** @var Example $example */
-        $example = $this->getContainer()->get('example');
-
-        $this->assertInstanceOf(ExampleA::class, $example->h->getA());
-    }
-
     public function testConstructorInjection()
     {
         /** @var Example $example */
@@ -209,47 +208,42 @@ class ContainerTest extends \PHPUnit_Framework_TestCase
 
     public function testGetVariableFromContainerException()
     {
-        $string = null;
+        $this->expectException(\Psr\Container\NotFoundExceptionInterface::class);
+        $this->expectExceptionMessage('class "string" not found');
 
-        try {
-            $string = $this->getContainer()->get('string');
-        } catch (\Exception $ex) {
-            $this->assertTrue($ex->getMessage() === 'class "string" not found');
-            $this->assertInstanceOf(\Psr\Container\NotFoundExceptionInterface::class, $ex);
-        }
-
-        $this->assertNull($string);
+        $this->getContainer()->get('string');
     }
 
-    public function testNotFoundPropertyException()
+    public function testNotFoundInjectionForProperty()
     {
-        $container = $this->getContainer();
+        $this->expectException(\Psr\Container\ContainerExceptionInterface::class);
+        $this->expectExceptionMessage('For class (PDICTest\ContainerTest\ExampleC1), property (c): For class (PDICTest\ContainerTest\ExampleC), property (a): property "a" not found');
 
-        $object = null;
+        $this->getContainer()->get(ExampleC1::class);
+    }
 
-        try {
-            $object = $container->get(ExampleC::class);
-        } catch (\Exception $ex) {
-            $this->assertTrue($ex->getMessage() === "PDICTest\ContainerTest\ExampleC: Property a not found");
-            $this->assertInstanceOf(\ReflectionException::class, $ex);
-        }
+    public function testNotFoundInjectionForConstructor()
+    {
+        $this->expectException(\Psr\Container\ContainerExceptionInterface::class);
+        $this->expectExceptionMessage('For class (PDICTest\ContainerTest\ExampleC2), constructor argument (1): class "main" not found');
 
-        $this->assertNull($object);
+        $this->getContainer()->get(ExampleC2::class);
+    }
+
+    public function testNotFoundInjectionForSetter()
+    {
+        $this->expectException(\Psr\Container\ContainerExceptionInterface::class);
+        $this->expectExceptionMessage('For class (PDICTest\ContainerTest\ExampleC3), setter (setMain): setter "setMain" not found');
+
+        $this->getContainer()->get(ExampleC3::class);
     }
 
     public function testNotFoundException()
     {
-        $container = $this->getContainer();
+        $this->expectException(\Psr\Container\NotFoundExceptionInterface::class);
+        $this->expectExceptionMessage('class "main" not found');
 
-        $object = null;
-
-        try {
-            $object = $container->get('main');
-        } catch (\Exception $ex) {
-            $this->assertInstanceOf(\Psr\Container\NotFoundExceptionInterface::class, $ex);
-        }
-
-        $this->assertNull($object);
+        $this->getContainer()->get('main');
     }
 
     public function testAliases()
