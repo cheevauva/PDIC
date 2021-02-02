@@ -18,6 +18,7 @@ use PDICTest\ContainerTest\ExampleI;
 use PDICTest\ContainerTest\ExampleJ;
 use PDICTest\ContainerTest\ExampleK;
 use PDICTest\ContainerTest\ExampleL;
+use PDICTest\ContainerTest\ExampleL1;
 
 class ContainerTest extends \PHPUnit_Framework_TestCase
 {
@@ -310,6 +311,90 @@ class ContainerTest extends \PHPUnit_Framework_TestCase
         $after = $container->get(ExampleB::class);
 
         $this->assertEquals($before, $after);
+    }
+
+    public function testPSR11container()
+    {
+        $pimple = new \Pimple\Container();
+        $pdic = new \PDIC\Container([
+            '?pimple' => '#pimple:pimple',
+            '?pdic' => '#pimple:pdic',
+            '?newFoo' => '#pimple:foo',
+            '?bar' => '#pimple:bar',
+            '?loopy' => ExampleL1::class,
+            '?storage' => '#pimple:storage',
+            ExampleL1::class => [
+                'bar' => '?bar',
+                'foo' => '?newFoo',
+            ],
+        ], [
+            'pimple' => new \Pimple\Psr11\Container($pimple),
+        ]);
+
+        $pimple['foo'] = $pimple->factory(function () {
+            $foo = new \stdClass();
+            $foo->time = microtime(true);
+
+            return $foo;
+        });
+        $pimple['bar'] = function () {
+            $bar = new \stdClass();
+            $bar->time = microtime(true);
+
+            return $bar;
+        };
+        $pimple['pdic'] = function () use ($pdic) {
+            return $pdic;
+        };
+        $pimple['pimple'] = function ($pimple) {
+            return $pimple;
+        };
+        $pimple['storage'] = function ($pimple) {
+            $storage = new \SplObjectStorage();
+            $storage->attach($pimple['pdic']->get('loopy')->foo);
+            $storage->attach($pimple['pdic']->get('loopy')->bar);
+
+            return $storage;
+        };
+
+        $this->assertEquals($pimple, $pdic->get('pimple'));
+        $this->assertEquals($pdic, $pdic->get('pdic'));
+        $this->assertNotEquals($pdic->get('newFoo'), $pdic->get('newFoo'));
+        $this->assertEquals($pdic->get('bar'), $pdic->get('bar'));
+        $this->assertEquals($pdic->get('loopy')->bar, $pdic->get('bar'));
+        $this->assertEquals($pdic->get('loopy')->foo, $pdic->get('loopy')->foo);
+        $this->assertNotEquals($pdic->get('loopy')->foo, $pdic->get('newFoo'));
+
+        /* @var $storage \SplObjectStorage */
+        $storage = $pdic->get('storage');
+
+        $this->assertTrue($storage->contains($pdic->get('loopy')->bar));
+        $this->assertTrue($storage->contains($pdic->get('loopy')->foo));
+    }
+
+    public function testPSR11containerNotFound()
+    {
+        $this->expectException(\Psr\Container\ContainerExceptionInterface::class);
+        $this->expectExceptionMessage('entry "pimple" not found');
+
+        $pdic = new \PDIC\Container([
+            '?pimple' => '#pimple:pimple'
+        ]);
+        $pdic->get('pimple');
+    }
+
+    public function testPSR11containerNotImplementInterface()
+    {
+        $this->expectException(\Psr\Container\ContainerExceptionInterface::class);
+        $this->expectExceptionMessage('entry "pimple" not implemented PSR-11 interfface');
+
+        $pimple = new \Pimple\Container();
+        $pdic = new \PDIC\Container([
+            '?pimple' => '#pimple:pimple',
+        ], [
+            'pimple' => $pimple,
+        ]);
+        $pdic->get('pimple');
     }
 
 }

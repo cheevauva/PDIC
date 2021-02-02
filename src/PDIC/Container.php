@@ -15,6 +15,7 @@ class Container implements \Psr\Container\ContainerInterface
     const PREFIX_SETTER_INJECT = '>';
     const PREFIX_ALIAS = '?';
     const PREFIX_MEDIATOR = '~';
+    const PREFIX_PSR_CONTAINER = '#';
 
     /**
      * @var array
@@ -36,10 +37,6 @@ class Container implements \Psr\Container\ContainerInterface
      */
     protected $configuration;
 
-    /**
-     * @param array $map
-     * @param array $entries
-     */
     public function __construct(array $map, array $entries = [], Configuration $configuration = null)
     {
         $this->entries = $entries;
@@ -84,8 +81,26 @@ class Container implements \Psr\Container\ContainerInterface
             throw new Exception('id must be defined');
         }
 
-        if ($this->configuration->isSupportAliases && $id[0] === static::PREFIX_ALIAS) {
+        if ($id[0] === static::PREFIX_ALIAS) {
+            if (!$this->configuration->isSupportAliases) {
+                throw new Exception('I am not allowed to do this, because isSupportAliases defined as false');
+            }
+
             return $this->get(substr($id, 1));
+        }
+        
+        if ($id[0] === static::PREFIX_PSR_CONTAINER) {
+            list($containerId, $entryId) = explode(':', substr($id, 1));
+            
+            if (empty($this->entries[$containerId])) {
+                throw new Exception(sprintf('entry "%s" not found', $containerId));
+            }
+            
+            if (!($this->entries[$containerId] instanceof \Psr\Container\ContainerInterface)) {
+                throw new Exception(sprintf('entry "%s" not implemented PSR-11 interfface', $containerId));
+            }
+            
+            return $this->entries[$containerId]->get($entryId);
         }
 
         $isMediator = $id[0] === static::PREFIX_MEDIATOR;
@@ -121,7 +136,7 @@ class Container implements \Psr\Container\ContainerInterface
         if (!$this->configuration->isSupportInherit) {
             $map = isset($this->map[$id]) ? $this->map[$id] : [];
         } else {
-            $map = $this->getPropertiesByClass($id);
+            $map = $this->getDependencyMapById($id);
         }
 
         $constructorArguments = [];
@@ -213,7 +228,7 @@ class Container implements \Psr\Container\ContainerInterface
      * @param string $class
      * @return array
      */
-    protected function getPropertiesByClass($class)
+    protected function getDependencyMapById($class)
     {
         $classes = [];
 
