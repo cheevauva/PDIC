@@ -44,7 +44,7 @@ class Container implements \Psr\Container\ContainerInterface
         $this->configuration = is_null($configuration) ? new Configuration : $configuration;
 
         foreach ($map as $id => $def) {
-            if ($this->configuration->isSupportAliases && $id[0] === static::PREFIX_ALIAS) {
+            if ($id[0] === static::PREFIX_ALIAS) {
                 $this->aliases[substr($id, 1)] = $def;
             } else {
                 $this->map[$id] = $def;
@@ -60,46 +60,41 @@ class Container implements \Psr\Container\ContainerInterface
      */
     public function get($id)
     {
-        if ($this->configuration->isSupportAliases && isset($this->aliases[$id])) {
-            $id = $this->aliases[$id];
-        } else {
-            $id = static::PREFIX_FACTORY . $id;
+        if (isset($this->aliases[$id])) {
+            return $this->fetch($this->aliases[$id]);
         }
 
-        return $this->fetch($id);
+        throw new ExceptionNotFound(sprintf('entry "%s" not found', $id));
     }
 
     /**
      * @param string $id
+     * @param array $args
      * @return object
      * @throws ExceptionNotFound
      * @throws Exception
      */
-    protected function fetch($id)
+    protected function fetch($id, $args = [])
     {
         if (empty($id)) {
             throw new Exception('id must be defined');
         }
 
         if ($id[0] === static::PREFIX_ALIAS) {
-            if (!$this->configuration->isSupportAliases) {
-                throw new Exception('I am not allowed to do this, because isSupportAliases defined as false');
-            }
-
             return $this->get(substr($id, 1));
         }
-        
+
         if ($id[0] === static::PREFIX_PSR_CONTAINER) {
             list($containerId, $entryId) = explode(':', substr($id, 1));
-            
+
             if (empty($this->entries[$containerId])) {
                 throw new Exception(sprintf('entry "%s" not found', $containerId));
             }
-            
+
             if (!($this->entries[$containerId] instanceof \Psr\Container\ContainerInterface)) {
                 throw new Exception(sprintf('entry "%s" not implemented PSR-11 interfface', $containerId));
             }
-            
+
             return $this->entries[$containerId]->get($entryId);
         }
 
@@ -156,9 +151,6 @@ class Container implements \Psr\Container\ContainerInterface
             }
         }
 
-        if (!empty($constructorArguments)) {
-            ksort($constructorArguments, SORT_NUMERIC);
-        }
 
         try {
             $injection = 'constructor argument';
@@ -171,6 +163,14 @@ class Container implements \Psr\Container\ContainerInterface
                 $constructorArguments[$target] = $this->fetch($entryId);
             }
 
+            foreach ($args as $key => $value) {
+                $constructorArguments[$key] = $value;
+            }
+            
+            if (!empty($constructorArguments)) {
+                ksort($constructorArguments, SORT_NUMERIC);
+            }
+            
             $entry = new $id(...$constructorArguments);
 
             if ($isService) {
@@ -192,7 +192,6 @@ class Container implements \Psr\Container\ContainerInterface
             }
 
             $injection = 'property';
-
 
             foreach ($properties as $target => $entryId) {
                 if (!$this->configuration->isSupportInjectionToProperty) {
@@ -283,6 +282,16 @@ class Container implements \Psr\Container\ContainerInterface
     public function has($id)
     {
         return isset($this->entries[$id]);
+    }
+
+    public function __invoke()
+    {
+        /* @var $closure \Closure */
+        $closure = function ($id, $args = []) {
+            return $this->fetch(static::PREFIX_FACTORY . $id, $args);
+        };
+
+        return $closure->bindTo($this);
     }
 
 }

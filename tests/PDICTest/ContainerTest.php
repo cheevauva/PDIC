@@ -16,6 +16,7 @@ use PDICTest\ContainerTest\ExampleG;
 use PDICTest\ContainerTest\ExampleH;
 use PDICTest\ContainerTest\ExampleI;
 use PDICTest\ContainerTest\ExampleJ;
+use PDICTest\ContainerTest\ExampleJ1;
 use PDICTest\ContainerTest\ExampleK;
 use PDICTest\ContainerTest\ExampleL;
 use PDICTest\ContainerTest\ExampleL1;
@@ -44,6 +45,13 @@ class ContainerTest extends \PHPUnit_Framework_TestCase
         $this->container = new \PDIC\Container($this->getInjectionMap(), $objects);
 
         return $this->container;
+    }
+
+    protected function getBuilder()
+    {
+        $container = $this->getContainer();
+
+        return $container();
     }
 
     protected function getInjectionMap()
@@ -109,6 +117,9 @@ class ContainerTest extends \PHPUnit_Framework_TestCase
                 '^2' => ExampleD::class,
                 '^1' => '@string',
             ],
+            ExampleJ1::class => [
+                '^2' => ExampleD::class,
+            ],
             ExampleK::class => [
                 'a' => '?factoryA',
             ],
@@ -154,8 +165,10 @@ class ContainerTest extends \PHPUnit_Framework_TestCase
         $this->assertTrue($storage->contains($example->a));
         $this->assertTrue($storage->contains($example->b));
 
-        $this->assertFalse($storage->contains($container->get(ExampleA::class)));
-        $this->assertFalse($storage->contains($container->get(ExampleB::class)));
+        $builder = $container();
+
+        $this->assertFalse($storage->contains($builder(ExampleA::class)));
+        $this->assertFalse($storage->contains($builder(ExampleB::class)));
     }
 
     public function testPresetObjects()
@@ -165,9 +178,11 @@ class ContainerTest extends \PHPUnit_Framework_TestCase
         /** @var Example $example */
         $example = $container->get('example');
 
+        $builder = $container();
+
         $this->assertTrue($example->e->std->isPreseted);
         $this->assertEquals($container, $example->e->container);
-        $this->assertTrue(empty($container->get(\stdClass::class)->isPreseted));
+        $this->assertTrue(empty($builder(\stdClass::class)->isPreseted));
     }
 
     public function testCreateInContainer()
@@ -210,41 +225,49 @@ class ContainerTest extends \PHPUnit_Framework_TestCase
     public function testGetVariableFromContainerException()
     {
         $this->expectException(\Psr\Container\NotFoundExceptionInterface::class);
-        $this->expectExceptionMessage('class "string" not found');
+        $this->expectExceptionMessage('entry "string" not found');
 
         $this->getContainer()->get('string');
     }
 
     public function testNotFoundInjectionForProperty()
     {
+        $builder = $this->getBuilder();
+
         $this->expectException(\Psr\Container\ContainerExceptionInterface::class);
         $this->expectExceptionMessage('For class (PDICTest\ContainerTest\ExampleC1), property (c): For class (PDICTest\ContainerTest\ExampleC), property (a): property "a" not found');
 
-        $this->getContainer()->get(ExampleC1::class);
+        $builder(ExampleC1::class);
     }
 
     public function testNotFoundInjectionForConstructor()
     {
+        $builder = $this->getBuilder();
+
         $this->expectException(\Psr\Container\ContainerExceptionInterface::class);
         $this->expectExceptionMessage('For class (PDICTest\ContainerTest\ExampleC2), constructor argument (1): class "main" not found');
 
-        $this->getContainer()->get(ExampleC2::class);
+        $builder(ExampleC2::class);
     }
 
     public function testNotFoundInjectionForSetter()
     {
+        $builder = $this->getBuilder();
+
         $this->expectException(\Psr\Container\ContainerExceptionInterface::class);
         $this->expectExceptionMessage('For class (PDICTest\ContainerTest\ExampleC3), setter (setMain): setter "setMain" not found');
 
-        $this->getContainer()->get(ExampleC3::class);
+        $builder(ExampleC3::class);
     }
 
     public function testNotFoundException()
     {
+        $builder = $this->getBuilder();
+
         $this->expectException(\Psr\Container\NotFoundExceptionInterface::class);
         $this->expectExceptionMessage('class "main" not found');
 
-        $this->getContainer()->get('main');
+        $builder('main');
     }
 
     public function testAliases()
@@ -395,6 +418,17 @@ class ContainerTest extends \PHPUnit_Framework_TestCase
             'pimple' => $pimple,
         ]);
         $pdic->get('pimple');
+    }
+
+    public function testBuilder()
+    {
+        $builder = $this->getBuilder();
+
+        $j1 = $builder(ExampleJ1::class, [
+            1 => 'abc',
+        ]);
+
+        $this->assertEquals((string) $j1, 'abc' . ExampleD::class);
     }
 
 }
